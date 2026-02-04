@@ -1,4 +1,3 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GamificationStats } from "@/components/GamificationStats";
@@ -7,9 +6,12 @@ import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
 import { BookOpen, Video, PenTool, Zap, Calendar, Archive } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function Home() {
   const { user, loading, isAuthenticated } = useAuth();
+  const [, setLocation] = useLocation();
   const [mockHeatmapData, setMockHeatmapData] = useState<
     Array<{ date: string; count: number }>
   >([]);
@@ -163,6 +165,19 @@ export default function Home() {
               <CardContent>
                 <p className="text-sm text-muted-foreground">
                   已學習的內容自動按時間和難度分類歸檔，方便複習和追蹤進度。
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-pink-500" />
+                  AI 課程生成
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  使用本地 AI 按需生成自訂英文課程，包含詞彙、文法、閱讀和練習題。
                 </p>
               </CardContent>
             </Card>
