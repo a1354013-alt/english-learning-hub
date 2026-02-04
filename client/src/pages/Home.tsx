@@ -300,7 +300,7 @@ export default function Home() {
         </Card>
 
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Button className="h-24 text-lg" asChild>
             <a href="/srs">
               <Zap className="w-6 h-6 mr-2" />
@@ -318,6 +318,10 @@ export default function Home() {
               <PenTool className="w-6 h-6 mr-2" />
               寫作練習
             </a>
+          </Button>
+          <Button className="h-24 text-lg" variant="outline" onClick={() => setLocation("/ai-course")}>
+            <Zap className="w-6 h-6 mr-2" />
+            生成課程
           </Button>
         </div>
       </div>
