@@ -9,6 +9,8 @@ import SRSReview from "./pages/SRSReview";
 import WritingPractice from "./pages/WritingPractice";
 import VideoLearning from "./pages/VideoLearning";
 import DailyContent from "./pages/DailyContent";
+import AICourseGenerator from "./pages/AICourseGenerator";
+import MyCourses from "./pages/MyCourses";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -19,6 +21,8 @@ function Router() {
       <Route path={"/writing"} component={WritingPractice} />
       <Route path={"/videos"} component={VideoLearning} />
       <Route path={"/daily-content"} component={DailyContent} />
+      <Route path={"/ai-course"} component={AICourseGenerator} />
+      <Route path={"/my-courses"} component={MyCourses} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

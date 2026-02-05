@@ -365,3 +365,40 @@ export const learningPaths = mysqlTable("learningPaths", {
 
 export type LearningPath = typeof learningPaths.$inferSelect;
 export type InsertLearningPath = typeof learningPaths.$inferInsert;
+
+
+/**
+ * AI-generated courses
+ */
+export const aiCourses = mysqlTable(
+  "aiCourses",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    topic: varchar("topic", { length: 255 }),
+    proficiencyLevel: mysqlEnum("proficiencyLevel", [
+      "junior_high",
+      "senior_high",
+      "college",
+      "advanced",
+    ]).notNull(),
+    vocabulary: json("vocabulary"), // Array of vocabulary items
+    grammar: json("grammar"), // Grammar explanation
+    readingMaterial: json("readingMaterial"), // Reading passage
+    exercises: json("exercises"), // Array of exercises
+    isCompleted: boolean("isCompleted").default(false).notNull(),
+    rating: int("rating"), // 1-5 star rating
+    notes: text("notes"), // User notes
+    generatedAt: timestamp("generatedAt").defaultNow().notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    userIdIdx: index("userIdIdx").on(table.userId),
+    generatedAtIdx: index("generatedAtIdx").on(table.generatedAt),
+  })
+);
+
+export type AiCourse = typeof aiCourses.$inferSelect;
+export type InsertAiCourse = typeof aiCourses.$inferInsert;

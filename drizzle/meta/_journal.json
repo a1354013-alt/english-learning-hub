@@ -15,6 +15,13 @@
       "when": 1767631072370,
       "tag": "0001_cynical_thunderball",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1770267583658,
+      "tag": "0002_chubby_raza",
+      "breakpoints": true
     }
   ]
 }

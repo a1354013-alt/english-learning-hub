@@ -17,6 +17,8 @@ import {
 } from "./db";
 import { TRPCError } from "@trpc/server";
 import { generateDailyContent, archiveOldContent } from "./contentGeneration";
+import { generateEnglishCourse } from "./ollama";
+import { saveAiCourse, getAiCourses, deleteAiCourse, markCourseCompleted, rateCourse, addCourseNotes } from "./db";
 
 export const appRouter = router({
   system: systemRouter,
@@ -309,6 +311,72 @@ export const appRouter = router({
           input.currentLevel,
           input.targetLevel
         );
+        return result;
+      }),
+  }),
+
+  // AI Course Generation System
+  aiCourse: router({
+    generate: protectedProcedure
+      .input(
+        z.object({
+          proficiencyLevel: z.enum([
+            "junior_high",
+            "senior_high",
+            "college",
+            "advanced",
+          ]),
+          topic: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const courseContent = await generateEnglishCourse(
+            input.proficiencyLevel,
+            input.topic
+          );
+          const saved = await saveAiCourse(ctx.user.id, {
+            title: input.topic || `${input.proficiencyLevel} Course`,
+            topic: input.topic,
+            proficiencyLevel: input.proficiencyLevel,
+            content: courseContent,
+          });
+          return { success: true, data: saved };
+        } catch (error) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: error instanceof Error ? error.message : "Failed to generate course",
+          });
+        }
+      }),
+    list: protectedProcedure
+      .input(z.object({ limit: z.number().default(50), offset: z.number().default(0) }))
+      .query(async ({ ctx, input }) => {
+        const courses = await getAiCourses(ctx.user.id, input.limit, input.offset);
+        return courses;
+      }),
+    delete: protectedProcedure
+      .input(z.object({ courseId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await deleteAiCourse(ctx.user.id, input.courseId);
+        return result;
+      }),
+    markCompleted: protectedProcedure
+      .input(z.object({ courseId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await markCourseCompleted(ctx.user.id, input.courseId);
+        return result;
+      }),
+    rate: protectedProcedure
+      .input(z.object({ courseId: z.number(), rating: z.number().min(1).max(5) }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await rateCourse(ctx.user.id, input.courseId, input.rating);
+        return result;
+      }),
+    addNotes: protectedProcedure
+      .input(z.object({ courseId: z.number(), notes: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await addCourseNotes(ctx.user.id, input.courseId, input.notes);
         return result;
       }),
   }),

@@ -515,3 +515,139 @@ export async function archiveGeneratedContent(contentId: number) {
 
   return { contentId, archivedDate: today };
 }
+
+
+/**
+ * Save AI-generated course
+ */
+export async function saveAiCourse(
+  userId: number,
+  course: {
+    title: string;
+    topic?: string;
+    proficiencyLevel: string;
+    content: any;
+  }
+) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const { aiCourses } = await import("../drizzle/schema");
+
+  const result = await db.insert(aiCourses).values({
+    userId,
+    title: course.title,
+    topic: course.topic,
+    proficiencyLevel: course.proficiencyLevel as any,
+    vocabulary: JSON.stringify(course.content.vocabulary || []),
+    grammar: JSON.stringify(course.content.grammar || {}),
+    readingMaterial: JSON.stringify(course.content.readingMaterial || {}),
+    exercises: JSON.stringify(course.content.exercises || []),
+    generatedAt: new Date(),
+    isCompleted: false,
+  });
+
+  return { success: true, courseId: result[0].insertId };
+}
+
+/**
+ * Get user's AI courses
+ */
+export async function getAiCourses(
+  userId: number,
+  limit: number = 50,
+  offset: number = 0
+) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const { aiCourses } = await import("../drizzle/schema");
+  const { eq } = await import("drizzle-orm");
+
+  const courses = await db
+    .select()
+    .from(aiCourses)
+    .where(eq(aiCourses.userId, userId))
+    .limit(limit)
+    .offset(offset)
+    .orderBy(desc(aiCourses.generatedAt));
+
+  return courses.map((course: any) => ({
+    ...course,
+    vocabulary: course.vocabulary ? JSON.parse(course.vocabulary) : [],
+    grammar: course.grammar ? JSON.parse(course.grammar) : {},
+    readingMaterial: course.readingMaterial ? JSON.parse(course.readingMaterial) : {},
+    exercises: course.exercises ? JSON.parse(course.exercises) : [],
+  }));
+}
+
+/**
+ * Delete AI course
+ */
+export async function deleteAiCourse(userId: number, courseId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const { aiCourses } = await import("../drizzle/schema");
+  const { eq, and } = await import("drizzle-orm");
+
+  await db
+    .delete(aiCourses)
+    .where(and(eq(aiCourses.id, courseId), eq(aiCourses.userId, userId)));
+
+  return { success: true };
+}
+
+/**
+ * Mark course as completed
+ */
+export async function markCourseCompleted(userId: number, courseId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const { aiCourses } = await import("../drizzle/schema");
+  const { eq, and } = await import("drizzle-orm");
+
+  await db
+    .update(aiCourses)
+    .set({ isCompleted: true })
+    .where(and(eq(aiCourses.id, courseId), eq(aiCourses.userId, userId)));
+
+  return { success: true };
+}
+
+/**
+ * Rate AI course
+ */
+export async function rateCourse(userId: number, courseId: number, rating: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const { aiCourses } = await import("../drizzle/schema");
+  const { eq, and } = await import("drizzle-orm");
+
+  await db
+    .update(aiCourses)
+    .set({ rating })
+    .where(and(eq(aiCourses.id, courseId), eq(aiCourses.userId, userId)));
+
+  return { success: true };
+}
+
+/**
+ * Add notes to course
+ */
+export async function addCourseNotes(userId: number, courseId: number, notes: string) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const { aiCourses } = await import("../drizzle/schema");
+  const { eq, and } = await import("drizzle-orm");
+
+  await db
+    .update(aiCourses)
+    .set({ notes })
+    .where(and(eq(aiCourses.id, courseId), eq(aiCourses.userId, userId)));
+
+  return { success: true };
+}
