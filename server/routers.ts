@@ -379,6 +379,50 @@ export const appRouter = router({
         const result = await addCourseNotes(ctx.user.id, input.courseId, input.notes);
         return result;
       }),
+    importToSRS: protectedProcedure
+      .input(z.object({ courseId: z.number(), deckId: z.number().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
+          const { aiCourses, cards, decks } = await import("../drizzle/schema");
+          const { eq } = await import("drizzle-orm");
+          const course = await db.select().from(aiCourses).where(eq(aiCourses.id, input.courseId)).limit(1);
+          if (course.length === 0) throw new Error("Course not found");
+          const courseData = course[0];
+          let deckId = input.deckId;
+          if (!deckId) {
+            const deckResult = await db.insert(decks).values({
+              userId: ctx.user.id,
+              title: courseData.title + " - SRS Deck",
+              description: "Imported from AI course: " + courseData.title,
+              proficiencyLevel: courseData.proficiencyLevel,
+            });
+            deckId = deckResult[0].insertId;
+          }
+          const vocabulary = courseData.vocabulary ? JSON.parse(courseData.vocabulary as any) : [];
+          const cardInserts = vocabulary.map((vocab: any) => ({
+            userId: ctx.user.id,
+            deckId,
+            frontText: vocab.word,
+            backText: vocab.definition + "\n" + vocab.chineseTranslation,
+            proficiencyLevel: courseData.proficiencyLevel,
+            repetitionCount: 0,
+            easinessFactor: 2.5,
+            interval: 1,
+            nextReviewAt: new Date(),
+          }));
+          if (cardInserts.length > 0) {
+            await db.insert(cards).values(cardInserts);
+          }
+          return { success: true, deckId, cardsImported: cardInserts.length };
+        } catch (error) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: error instanceof Error ? error.message : "Failed to import to SRS",
+          });
+        }
+      }),
   }),
 
   // Content Generation System

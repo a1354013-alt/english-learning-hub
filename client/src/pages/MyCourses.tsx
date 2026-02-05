@@ -290,6 +290,16 @@ export default function MyCourses() {
                   )}
                   <Button
                     variant="outline"
+                    onClick={() => {
+                      // TODO: Implement import to SRS
+                      alert("導入 SRS 功能開發中...");
+                    }}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    導入 SRS
+                  </Button>
+                  <Button
+                    variant="outline"
                     onClick={() =>
                       deleteMutation.mutate({
                         courseId: selectedCourse.id,
