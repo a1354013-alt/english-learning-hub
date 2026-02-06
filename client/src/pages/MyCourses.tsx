@@ -49,7 +49,7 @@ export default function MyCourses() {
       toast.success("課程已刪除");
       // Refresh the list
       if (coursesList) {
-        setCourses(coursesList.filter((c) => c.id !== selectedCourse?.id));
+        setCourses(coursesList.filter((c: any) => c.id !== selectedCourse?.id));
       }
       setSelectedCourse(null);
     },

@@ -68,6 +68,17 @@
 - [ ] 實現課程預覽和編輯功能
 - [ ] 添加課程生成進度顯示
 
+## 產產級代碼改進
+- [x] 修改 server/_core/vite.ts 的 serveStatic()
+- [x] 修改 server/_core/cookies.ts 的 getSessionCookieOptions
+- [x] 重構 server/db.ts 的 getDb() 使用連線池
+- [ ] 加強 OAuth state 機制
+- [ ] 改進 server/_core/env.ts 啟動驗證
+- [ ] 修正 server/db.ts 的 getGeneratedContent()
+- [ ] 修正 server/contentGeneration.ts 的 archiveOldContent
+- [ ] 修改 server/routers.ts 的 srs.addCard
+- [ ] 重構 server/routers.ts 的 import 語句
+
 ## 已完成項目
 - [x] 初始化專案架構（React + Express + MySQL）
 - [x] 設置開發環境

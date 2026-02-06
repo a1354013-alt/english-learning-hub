@@ -1,4 +1,5 @@
 import { eq, and, lte, desc, asc } from "drizzle-orm";
+import mysql from "mysql2/promise";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -17,18 +18,49 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
-let _db: ReturnType<typeof drizzle> | null = null;
+let _db: any = null;
+let _pool: mysql.Pool | null = null;
 
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try {
-      _db = drizzle(process.env.DATABASE_URL);
-    } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
-      _db = null;
-    }
+  if (_db) {
+    return _db;
   }
-  return _db;
+
+  if (!ENV.databaseUrl) {
+    throw new Error("DATABASE_URL environment variable is not set");
+  }
+
+  try {
+    const pool = await mysql.createPool({
+      host: new URL(ENV.databaseUrl).hostname,
+    user: new URL(ENV.databaseUrl).username,
+    password: new URL(ENV.databaseUrl).password,
+    database: new URL(ENV.databaseUrl).pathname.slice(1),
+      connectionLimit: 10,
+      waitForConnections: true,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 0,
+    });
+
+    _pool = pool;
+    _db = drizzle(pool);
+
+    // Health check: verify database connection
+    const connection = await pool.getConnection();
+    try {
+      await connection.query("SELECT 1");
+      console.log("[Database] Connection pool initialized successfully");
+    } finally {
+      connection.release();
+    }
+
+    return _db;
+  } catch (error) {
+    console.error("[Database] Failed to initialize connection pool:", error);
+    throw new Error(
+      `Failed to connect to database: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+  }
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
