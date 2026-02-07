@@ -18,6 +18,13 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
+/**
+ * Convert Date to YYYY-MM-DD string format
+ */
+function toDateStr(d: Date): string {
+  return d.toISOString().split("T")[0];
+}
+
 let _db: any = null;
 let _pool: mysql.Pool | null = null;
 
@@ -298,12 +305,12 @@ export async function checkDailySignIn(userId: number) {
   const db = await getDb();
   if (!db) return null;
 
-  const today = new Date();
+  const todayStr = toDateStr(new Date());
   const result = await db
     .select()
     .from(dailySignIns)
     .where(
-      and(eq(dailySignIns.userId, userId), eq(dailySignIns.signInDate, today))
+      and(eq(dailySignIns.userId, userId), eq(dailySignIns.signInDate, todayStr as any))
     )
     .limit(1);
 
@@ -317,7 +324,7 @@ export async function recordDailySignIn(userId: number) {
   const db = await getDb();
   if (!db) return null;
 
-  const today = new Date();
+  const todayStr = toDateStr(new Date());
 
   // Check if already signed in today
   const existingSignIn = await checkDailySignIn(userId);
@@ -339,6 +346,7 @@ export async function recordDailySignIn(userId: number) {
   const user = userResult[0];
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = toDateStr(yesterday);
 
   // Check if signed in yesterday
   const yesterdaySignIn = await db
@@ -347,7 +355,7 @@ export async function recordDailySignIn(userId: number) {
     .where(
       and(
         eq(dailySignIns.userId, userId),
-        eq(dailySignIns.signInDate, yesterday)
+        eq(dailySignIns.signInDate, yesterdayStr as any)
       )
     )
     .limit(1);
@@ -358,7 +366,7 @@ export async function recordDailySignIn(userId: number) {
   // Record sign-in
   await db.insert(dailySignIns).values({
     userId,
-    signInDate: today,
+    signInDate: todayStr as any,
     xpEarned: 10,
   });
 
@@ -369,12 +377,12 @@ export async function recordDailySignIn(userId: number) {
       currentStreak: newStreak,
       longestStreak: newLongestStreak,
       totalXp: user.totalXp + 10,
-      lastActivityDate: today,
+      lastActivityDate: new Date(),
     })
     .where(eq(users.id, userId));
 
   return {
-    signInDate: today,
+    signInDate: todayStr as any,
     xpEarned: 10,
     currentStreak: newStreak,
     longestStreak: newLongestStreak,
@@ -539,8 +547,8 @@ export async function archiveGeneratedContent(contentId: number) {
   const db = await getDb();
   if (!db) return null;
 
-  const today = new Date();
-  const archivedDateStr = today.toISOString().split("T")[0];
+  const todayStr = toDateStr(new Date());
+  const archivedDateStr = todayStr;
 
   await db
     .update(generatedContent)

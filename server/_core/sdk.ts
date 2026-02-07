@@ -39,8 +39,36 @@ class OAuthService {
   }
 
   private decodeState(state: string): string {
-    const redirectUri = atob(state);
-    return redirectUri;
+    try {
+      const stateData = JSON.parse(atob(state));
+      
+      // Validate state structure
+      if (!stateData.redirectUri || !stateData.nonce || !stateData.timestamp) {
+        throw new Error("Invalid state format");
+      }
+      
+      // Check if state is not older than 10 minutes
+      const now = Date.now();
+      const stateAge = now - stateData.timestamp;
+      if (stateAge > 10 * 60 * 1000) {
+        throw new Error("State has expired");
+      }
+      
+      // Validate redirectUri is from the same origin
+      const allowedOrigins = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        process.env.VITE_APP_URL || "https://manus.space"
+      ];
+      
+      if (!allowedOrigins.some(origin => stateData.redirectUri.startsWith(origin))) {
+        throw new Error("Invalid redirect URI");
+      }
+      
+      return stateData.redirectUri;
+    } catch (error) {
+      throw new Error(`Invalid state: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
   }
 
   async getTokenByCode(

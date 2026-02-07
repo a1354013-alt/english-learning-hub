@@ -46,7 +46,15 @@ export function registerOAuthRoutes(app: Express) {
 
       res.redirect(302, "/");
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       console.error("[OAuth] Callback failed", error);
+      
+      // Check if error is related to state validation
+      if (errorMessage.includes("Invalid state") || errorMessage.includes("State has expired")) {
+        res.status(400).json({ error: "Invalid or expired state parameter" });
+        return;
+      }
+      
       res.status(500).json({ error: "OAuth callback failed" });
     }
   });

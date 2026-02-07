@@ -3,6 +3,13 @@ import { generatedContent, InsertGeneratedContent } from "../drizzle/schema";
 import { eq, and, lt } from "drizzle-orm";
 
 /**
+ * Convert Date to YYYY-MM-DD string format
+ */
+function toDateStr(d: Date): string {
+  return d.toISOString().split("T")[0];
+}
+
+/**
  * Content generation system that creates learning materials based on proficiency level
  */
 
@@ -188,8 +195,8 @@ export async function archiveOldContent() {
 
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0];
-  const archivedDateStr = new Date().toISOString().split("T")[0];
+  const thirtyDaysAgoStr = toDateStr(thirtyDaysAgo);
+  const archivedDateStr = toDateStr(new Date());
 
   // Archive old content
   const result = await db

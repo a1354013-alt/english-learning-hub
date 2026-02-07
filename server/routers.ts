@@ -119,9 +119,34 @@ export const appRouter = router({
         }
 
         try {
-          const { cards } = await import("../drizzle/schema");
+          const { cards, decks } = await import("../drizzle/schema");
+          const { eq } = await import("drizzle-orm");
+          
+          // Get or create default deck
+          let deckId = 1;
+          const userDecks = await db
+            .select()
+            .from(decks)
+            .where(eq(decks.userId, ctx.user.id))
+            .limit(1);
+          
+          if (userDecks.length === 0) {
+            // Create default deck
+            const newDeck = await db.insert(decks).values({
+              userId: ctx.user.id,
+              title: "Default",
+              description: "Default deck for flashcards",
+              cardCount: 0,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+            deckId = newDeck[0].insertId || 1;
+          } else {
+            deckId = userDecks[0].id;
+          }
+          
           const result = await db.insert(cards).values({
-            deckId: 1,
+            deckId,
             userId: ctx.user.id,
             frontText: input.frontText,
             backText: input.backText,

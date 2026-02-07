@@ -72,12 +72,12 @@
 - [x] 修改 server/_core/vite.ts 的 serveStatic()
 - [x] 修改 server/_core/cookies.ts 的 getSessionCookieOptions
 - [x] 重構 server/db.ts 的 getDb() 使用連線池
-- [ ] 加強 OAuth state 機制
-- [ ] 改進 server/_core/env.ts 啟動驗證
-- [ ] 修正 server/db.ts 的 getGeneratedContent()
-- [ ] 修正 server/contentGeneration.ts 的 archiveOldContent
-- [ ] 修改 server/routers.ts 的 srs.addCard
-- [ ] 重構 server/routers.ts 的 import 語句
+- [x] 加強 OAuth state 機制
+- [x] 改進 server/_core/env.ts 啟動驗證
+- [x] 修正 server/db.ts 的 getGeneratedContent()
+- [x] 修正 server/contentGeneration.ts 的 archiveOldContent
+- [x] 修改 server/routers.ts 的 srs.addCard
+- [x] 重構 server/routers.ts 的 import 語句
 
 ## 已完成項目
 - [x] 初始化專案架構（React + Express + MySQL）
