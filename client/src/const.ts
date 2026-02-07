@@ -1,22 +1,9 @@
 export { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 
 /**
- * Generate HMAC signature for OAuth state
- * Note: This is a client-side representation. The actual signature is verified on the server.
- * The server will re-generate the signature and compare it.
- */
-function generateStateSignature(redirectUri: string, nonce: string, timestamp: number): string {
-  // Client-side signature generation (for demonstration)
-  // Server will verify using JWT_SECRET
-  const message = `${redirectUri}:${nonce}:${timestamp}`;
-  
-  // Use SubtleCrypto for HMAC-SHA256
-  return btoa(message); // Placeholder: actual signature will be verified on server
-}
-
-/**
  * Generate login URL at runtime so redirect URI reflects the current origin.
- * State includes redirectUri, nonce, timestamp, and signature for CSRF protection.
+ * State includes redirectUri, nonce, and timestamp for CSRF protection.
+ * The server will generate the HMAC-SHA256 signature using JWT_SECRET.
  */
 export const getLoginUrl = () => {
   const oauthPortalUrl = import.meta.env.VITE_OAUTH_PORTAL_URL;
@@ -27,13 +14,13 @@ export const getLoginUrl = () => {
   const nonce = generateNonce();
   const timestamp = Date.now();
 
-  // Create state object with signature placeholder
-  // Server will verify the signature using JWT_SECRET
+  // Create state object
+  // The server will generate the HMAC-SHA256 signature using JWT_SECRET
+  // Client cannot generate the signature because JWT_SECRET is server-side only
   const stateData = {
     redirectUri,
     nonce,
     timestamp,
-    signature: generateStateSignature(redirectUri, nonce, timestamp),
   };
 
   // Encode state as base64

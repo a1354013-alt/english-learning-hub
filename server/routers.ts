@@ -120,7 +120,7 @@ export const appRouter = router({
 
         try {
           // Get or create default deck
-          let deckId = 1;
+          let deckId: number | undefined;
           const userDecks = await db
             .select()
             .from(decks)
@@ -137,9 +137,22 @@ export const appRouter = router({
               createdAt: new Date(),
               updatedAt: new Date(),
             });
-            deckId = newDeck[0].insertId || 1;
+            deckId = newDeck[0]?.insertId;
+            if (!deckId) {
+              throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Failed to create default deck",
+              });
+            }
           } else {
             deckId = userDecks[0].id;
+          }
+          
+          if (!deckId) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Failed to get or create deck",
+            });
           }
           
           const result = await db.insert(cards).values({

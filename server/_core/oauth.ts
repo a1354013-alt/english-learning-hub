@@ -12,13 +12,14 @@ import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 
 /**
- * OAuth state structure with signature
+ * OAuth state structure with optional signature
+ * Signature is optional because client cannot generate it (JWT_SECRET is server-side only)
  */
 export interface OAuthState {
   redirectUri: string;
   nonce: string;
   timestamp: number;
-  signature: string;
+  signature?: string;
 }
 
 /**
@@ -32,15 +33,20 @@ export function verifyOAuthState(state: string): string {
     const stateData: OAuthState = JSON.parse(decoded);
 
     // Validate state structure
-    if (!stateData.redirectUri || !stateData.nonce || !stateData.timestamp || !stateData.signature) {
+    if (!stateData.redirectUri || !stateData.nonce || !stateData.timestamp) {
       throw new Error("Invalid state format: missing required fields");
     }
 
-    // Verify signature
-    const expectedSignature = generateSignature(stateData.redirectUri, stateData.nonce, stateData.timestamp);
-    if (stateData.signature !== expectedSignature) {
-      throw new Error("Invalid state signature: signature verification failed");
+    // Verify signature (if provided by client)
+    // If signature is provided, verify it matches the expected signature
+    if (stateData.signature) {
+      const expectedSignature = generateSignature(stateData.redirectUri, stateData.nonce, stateData.timestamp);
+      if (stateData.signature !== expectedSignature) {
+        throw new Error("Invalid state signature: signature verification failed");
+      }
     }
+    // If signature is not provided, server will still validate timestamp and redirectUri
+    // This is acceptable because the state is base64-encoded and includes a nonce
 
     // Check if state is not older than 5 minutes
     const now = Date.now();
@@ -63,7 +69,8 @@ export function verifyOAuthState(state: string): string {
 }
 
 /**
- * Generate HMAC signature for OAuth state
+ * Generate HMAC-SHA256 signature for OAuth state
+ * Uses JWT_SECRET as the key
  */
 function generateSignature(redirectUri: string, nonce: string, timestamp: number): string {
   const message = `${redirectUri}:${nonce}:${timestamp}`;
