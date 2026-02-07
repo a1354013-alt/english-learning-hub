@@ -31,11 +31,13 @@ export async function getDb() {
   }
 
   try {
-    const pool = await mysql.createPool({
-      host: new URL(ENV.databaseUrl).hostname,
-    user: new URL(ENV.databaseUrl).username,
-    password: new URL(ENV.databaseUrl).password,
-    database: new URL(ENV.databaseUrl).pathname.slice(1),
+    const url = new URL(ENV.databaseUrl);
+    const pool = mysql.createPool({
+      host: url.hostname,
+      user: url.username,
+      password: url.password,
+      database: url.pathname.slice(1),
+      port: url.port ? Number(url.port) : 3306,
       connectionLimit: 10,
       waitForConnections: true,
       enableKeepAlive: true,
@@ -513,6 +515,7 @@ export async function getGeneratedContent(
   date: Date,
   proficiencyLevel: "junior_high" | "senior_high" | "college" | "advanced"
 ) {
+  const dateStr = date.toISOString().split("T")[0];
   const db = await getDb();
   if (!db) return [];
 
@@ -521,6 +524,7 @@ export async function getGeneratedContent(
     .from(generatedContent)
     .where(
       and(
+        eq(generatedContent.generatedDate, dateStr as any),
         eq(generatedContent.proficiencyLevel, proficiencyLevel),
         eq(generatedContent.isArchived, false)
       )
@@ -536,16 +540,17 @@ export async function archiveGeneratedContent(contentId: number) {
   if (!db) return null;
 
   const today = new Date();
+  const archivedDateStr = today.toISOString().split("T")[0];
 
   await db
     .update(generatedContent)
     .set({
       isArchived: true,
-      archivedDate: today,
+      archivedDate: archivedDateStr as any,
     })
     .where(eq(generatedContent.id, contentId));
 
-  return { contentId, archivedDate: today };
+  return { contentId, archivedDate: archivedDateStr };
 }
 
 

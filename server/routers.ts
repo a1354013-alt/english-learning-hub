@@ -19,6 +19,22 @@ import { TRPCError } from "@trpc/server";
 import { generateDailyContent, archiveOldContent } from "./contentGeneration";
 import { generateEnglishCourse } from "./ollama";
 import { saveAiCourse, getAiCourses, deleteAiCourse, markCourseCompleted, rateCourse, addCourseNotes } from "./db";
+import { eq, and, desc, lt } from "drizzle-orm";
+import {
+  users,
+  cards,
+  decks,
+  studyLogs,
+  dailySignIns,
+  dictionaryCache,
+  videos,
+  writingChallenges,
+  writingSubmissions,
+  generatedContent,
+  contentArchive,
+  learningPaths,
+  aiCourses,
+} from "../drizzle/schema";
 
 export const appRouter = router({
   system: systemRouter,

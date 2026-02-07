@@ -189,13 +189,14 @@ export async function archiveOldContent() {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0];
+  const archivedDateStr = new Date().toISOString().split("T")[0];
 
   // Archive old content
-  await db
+  const result = await db
     .update(generatedContent)
     .set({
       isArchived: true,
-      archivedDate: new Date(),
+      archivedDate: archivedDateStr as any,
     })
     .where(
       and(
@@ -203,4 +204,8 @@ export async function archiveOldContent() {
         eq(generatedContent.isArchived, false)
       )
     );
+
+  const updatedCount = result.rowsAffected || 0;
+  console.log(`[ContentGeneration] Archived ${updatedCount} old content items`);
+  return updatedCount;
 }
