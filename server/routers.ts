@@ -119,9 +119,6 @@ export const appRouter = router({
         }
 
         try {
-          const { cards, decks } = await import("../drizzle/schema");
-          const { eq } = await import("drizzle-orm");
-          
           // Get or create default deck
           let deckId = 1;
           const userDecks = await db
@@ -279,15 +276,8 @@ export const appRouter = router({
       // Fetch user data
       const userResult = await db
         .select()
-        .from(
-          (await import("../drizzle/schema")).users
-        )
-        .where(
-          (await import("drizzle-orm")).eq(
-            (await import("../drizzle/schema")).users.id,
-            ctx.user.id
-          )
-        )
+        .from(users)
+        .where(eq(users.id, ctx.user.id))
         .limit(1);
 
       if (userResult.length === 0) {
@@ -426,8 +416,6 @@ export const appRouter = router({
         try {
           const db = await getDb();
           if (!db) throw new Error("Database not available");
-          const { aiCourses, cards, decks } = await import("../drizzle/schema");
-          const { eq } = await import("drizzle-orm");
           const course = await db.select().from(aiCourses).where(eq(aiCourses.id, input.courseId)).limit(1);
           if (course.length === 0) throw new Error("Course not found");
           const courseData = course[0];

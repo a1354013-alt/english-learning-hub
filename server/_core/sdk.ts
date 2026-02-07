@@ -7,6 +7,7 @@ import { SignJWT, jwtVerify } from "jose";
 import type { User } from "../../drizzle/schema";
 import * as db from "../db";
 import { ENV } from "./env";
+import { verifyOAuthState } from "./oauth";
 import type {
   ExchangeTokenRequest,
   ExchangeTokenResponse,
@@ -39,47 +40,22 @@ class OAuthService {
   }
 
   private decodeState(state: string): string {
-    try {
-      const stateData = JSON.parse(atob(state));
-      
-      // Validate state structure
-      if (!stateData.redirectUri || !stateData.nonce || !stateData.timestamp) {
-        throw new Error("Invalid state format");
-      }
-      
-      // Check if state is not older than 10 minutes
-      const now = Date.now();
-      const stateAge = now - stateData.timestamp;
-      if (stateAge > 10 * 60 * 1000) {
-        throw new Error("State has expired");
-      }
-      
-      // Validate redirectUri is from the same origin
-      const allowedOrigins = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        process.env.VITE_APP_URL || "https://manus.space"
-      ];
-      
-      if (!allowedOrigins.some(origin => stateData.redirectUri.startsWith(origin))) {
-        throw new Error("Invalid redirect URI");
-      }
-      
-      return stateData.redirectUri;
-    } catch (error) {
-      throw new Error(`Invalid state: ${error instanceof Error ? error.message : "Unknown error"}`);
-    }
+    // Use the centralized OAuth state verification
+    return verifyOAuthState(state);
   }
 
-  async getTokenByCode(
+  async exchangeCodeForToken(
     code: string,
     state: string
   ): Promise<ExchangeTokenResponse> {
+    // Verify state signature and get redirect URI
+    const redirectUri = this.decodeState(state);
+
     const payload: ExchangeTokenRequest = {
       clientId: ENV.appId,
       grantType: "authorization_code",
       code,
-      redirectUri: this.decodeState(state),
+      redirectUri,
     };
 
     const { data } = await this.client.post<ExchangeTokenResponse>(
@@ -150,7 +126,7 @@ class SDKServer {
     code: string,
     state: string
   ): Promise<ExchangeTokenResponse> {
-    return this.oauthService.getTokenByCode(code, state);
+    return this.oauthService.exchangeCodeForToken(code, state);
   }
 
   /**

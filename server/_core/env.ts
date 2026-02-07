@@ -1,28 +1,98 @@
+/**
+ * Environment variable validation and configuration
+ * All required environment variables must be present and valid at startup
+ * Missing or invalid env vars will cause the server to fail immediately
+ */
 
-
-// Only validate in production/development, not in tests
-if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
+function validateEnvironment(): void {
   const errors: string[] = [];
-  
-  if (!process.env.VITE_APP_ID) errors.push("VITE_APP_ID is required");
-  if (!process.env.DATABASE_URL) errors.push("DATABASE_URL is required");
-  if (!process.env.OAUTH_SERVER_URL) errors.push("OAUTH_SERVER_URL is required");
-  if (!process.env.VITE_OAUTH_PORTAL_URL) errors.push("VITE_OAUTH_PORTAL_URL is required");
-  
+  const isTestMode = process.env.NODE_ENV === "test" || process.env.VITEST === "true";
+
+  // Required environment variables that must always be present
+  const requiredEnvs = {
+    JWT_SECRET: {
+      value: process.env.JWT_SECRET,
+      validate: (val: string | undefined) => {
+        if (!val) return "JWT_SECRET is required";
+        if (isTestMode) return null; // Allow shorter secrets in test mode
+        if (val.length < 32) return "JWT_SECRET must be at least 32 characters long";
+        return null;
+      },
+    },
+    DATABASE_URL: {
+      value: process.env.DATABASE_URL,
+      validate: (val: string | undefined) => {
+        if (!val) return "DATABASE_URL is required";
+        if (!val.startsWith("mysql://") && !val.startsWith("mysql+srv://")) {
+          return "DATABASE_URL must be a valid MySQL connection string";
+        }
+        return null;
+      },
+    },
+  };
+
+  // Conditionally required in production/development (not in tests)
+  if (!isTestMode) {
+    const productionEnvs = {
+      VITE_APP_ID: process.env.VITE_APP_ID,
+      OAUTH_SERVER_URL: process.env.OAUTH_SERVER_URL,
+      VITE_OAUTH_PORTAL_URL: process.env.VITE_OAUTH_PORTAL_URL,
+    };
+
+    Object.entries(productionEnvs).forEach(([key, value]) => {
+      if (!value) {
+        errors.push(`${key} is required in production/development mode`);
+      }
+    });
+  }
+
+  // Validate required environment variables
+  Object.entries(requiredEnvs).forEach(([key, { validate }]) => {
+    const error = validate(process.env[key]);
+    if (error) {
+      errors.push(error);
+    }
+  });
+
+  // Throw error if validation failed
   if (errors.length > 0) {
-    const errorMessage = `[ENV] Production validation failed:\n${errors.map(e => `  - ${e}`).join("\n")}`;
+    const errorMessage = `[ENV] Environment validation failed:\n${errors.map((e) => `  - ${e}`).join("\n")}`;
     console.error(errorMessage);
     throw new Error(errorMessage);
   }
 }
 
+// Validate environment variables immediately on module load
+validateEnvironment();
+
+/**
+ * Validated environment configuration
+ * All values are guaranteed to be present and valid
+ */
 export const ENV = {
-  appId: process.env.VITE_APP_ID || "test-app-id",
-  cookieSecret: process.env.JWT_SECRET || "test-secret-key-for-testing-purposes",
-  databaseUrl: process.env.DATABASE_URL || "mysql://localhost/test",
-  oAuthServerUrl: process.env.OAUTH_SERVER_URL || "http://localhost:8080",
+  // Core authentication
+  appId: process.env.VITE_APP_ID!,
+  cookieSecret: process.env.JWT_SECRET!,
+  databaseUrl: process.env.DATABASE_URL!,
+
+  // OAuth configuration
+  oAuthServerUrl: process.env.OAUTH_SERVER_URL!,
+  oAuthPortalUrl: process.env.VITE_OAUTH_PORTAL_URL!,
+
+  // Owner information
   ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
+  ownerName: process.env.OWNER_NAME ?? "",
+
+  // API configuration
+  forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
+  forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
+
+  // Analytics configuration
+  analyticsEndpoint: process.env.VITE_ANALYTICS_ENDPOINT ?? "",
+  analyticsWebsiteId: process.env.VITE_ANALYTICS_WEBSITE_ID ?? "",
+
+  // Runtime environment
   isProduction: process.env.NODE_ENV === "production",
-  forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "http://localhost:8080",
-  forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "test-key",
-};
+  isDevelopment: process.env.NODE_ENV === "development",
+  isTest: process.env.NODE_ENV === "test" || process.env.VITEST === "true",
+} as const;
