@@ -102,17 +102,22 @@ export function decodeAndVerifyOAuthState(state: string): string {
 function isValidRedirectUri(redirectUri: string): boolean {
   try {
     const url = new URL(redirectUri);
+    const appOrigin = ENV.appOrigin;
 
     // Allow localhost for development
     if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
       return true;
     }
 
-    // Allow configured production URL
-    if (ENV.forgeApiUrl) {
-      const apiUrl = new URL(ENV.forgeApiUrl);
-      if (url.origin === apiUrl.origin) {
-        return true;
+    // Allow configured app origin
+    if (appOrigin) {
+      try {
+        const appUrl = new URL(appOrigin);
+        if (url.origin === appUrl.origin) {
+          return true;
+        }
+      } catch {
+        // Invalid appOrigin URL, skip
       }
     }
 

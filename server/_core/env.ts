@@ -37,6 +37,7 @@ function validateEnvironment(): void {
       VITE_APP_ID: process.env.VITE_APP_ID,
       OAUTH_SERVER_URL: process.env.OAUTH_SERVER_URL,
       VITE_OAUTH_PORTAL_URL: process.env.VITE_OAUTH_PORTAL_URL,
+      APP_ORIGIN: process.env.APP_ORIGIN,
     };
 
     Object.entries(productionEnvs).forEach(([key, value]) => {
@@ -76,6 +77,7 @@ export const ENV = {
   databaseUrl: process.env.DATABASE_URL!,
 
   // OAuth configuration
+  appOrigin: process.env.APP_ORIGIN || (process.env.NODE_ENV === "development" ? "http://localhost:5173" : ""),
   oAuthServerUrl: process.env.OAUTH_SERVER_URL!,
   oAuthPortalUrl: process.env.VITE_OAUTH_PORTAL_URL!,
 

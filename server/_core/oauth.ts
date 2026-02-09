@@ -12,6 +12,17 @@ import { sdk } from "./sdk";
 import { encodeOAuthState, decodeAndVerifyOAuthState } from "./oauth-state";
 
 /**
+ * Generate a random nonce for CSRF protection
+ */
+function generateNonce(): string {
+  const array = new Uint8Array(16);
+  for (let i = 0; i < array.length; i++) {
+    array[i] = Math.floor(Math.random() * 256);
+  }
+  return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/**
  * Verify and decode OAuth state
  * Validates signature, timestamp, and redirect URI
  */
@@ -31,6 +42,45 @@ function getQueryParam(req: Request, key: string): string | undefined {
  * Register OAuth callback route
  */
 export function registerOAuthRoutes(app: Express) {
+  /**
+   * OAuth start endpoint
+   * Generates signed state and redirects to OAuth Portal
+   * This is the unified entry point for all OAuth login flows
+   */
+  app.get("/api/oauth/start", (req: Request, res: Response) => {
+    try {
+      // Get redirect path from query parameter (default to "/")
+      const redirectPath = getQueryParam(req, "redirect") || "/";
+      
+      // Construct full redirect URI
+      const appOrigin = ENV.appOrigin;
+      if (!appOrigin) {
+        res.status(500).json({ error: "APP_ORIGIN not configured" });
+        return;
+      }
+      
+      const redirectUri = `${appOrigin}${redirectPath}`;
+      
+      // Generate state payload
+      const nonce = generateNonce();
+      const timestamp = Date.now();
+      
+      // Generate signed state
+      const signedState = encodeOAuthState(redirectUri, nonce, timestamp);
+      
+      // Construct OAuth Portal URL
+      const oauthUrl = new URL(`${ENV.oAuthPortalUrl}/login`);
+      oauthUrl.searchParams.set("app_id", ENV.appId);
+      oauthUrl.searchParams.set("state", signedState);
+      
+      // Redirect to OAuth Portal
+      res.redirect(302, oauthUrl.toString());
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("[OAuth] Start failed:", errorMessage);
+      res.status(500).json({ error: "OAuth start failed" });
+    }
+  });
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");
