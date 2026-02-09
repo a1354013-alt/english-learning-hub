@@ -3,112 +3,20 @@
  * Prevents CSRF and open redirect attacks
  */
 
-import { createHmac } from "crypto";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { ENV } from "./env";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
-
-/**
- * OAuth state structure with optional signature
- * Signature is optional because client cannot generate it (JWT_SECRET is server-side only)
- */
-export interface OAuthState {
-  redirectUri: string;
-  nonce: string;
-  timestamp: number;
-  signature?: string;
-}
+import { encodeOAuthState, decodeAndVerifyOAuthState } from "./oauth-state";
 
 /**
  * Verify and decode OAuth state
  * Validates signature, timestamp, and redirect URI
  */
 export function verifyOAuthState(state: string): string {
-  try {
-    // Decode base64 state
-    const decoded = Buffer.from(state, "base64").toString("utf-8");
-    const stateData: OAuthState = JSON.parse(decoded);
-
-    // Validate state structure
-    if (!stateData.redirectUri || !stateData.nonce || !stateData.timestamp) {
-      throw new Error("Invalid state format: missing required fields");
-    }
-
-    // Verify signature (if provided by client)
-    // If signature is provided, verify it matches the expected signature
-    if (stateData.signature) {
-      const expectedSignature = generateSignature(stateData.redirectUri, stateData.nonce, stateData.timestamp);
-      if (stateData.signature !== expectedSignature) {
-        throw new Error("Invalid state signature: signature verification failed");
-      }
-    }
-    // If signature is not provided, server will still validate timestamp and redirectUri
-    // This is acceptable because the state is base64-encoded and includes a nonce
-
-    // Check if state is not older than 5 minutes
-    const now = Date.now();
-    const stateAge = now - stateData.timestamp;
-    if (stateAge > 5 * 60 * 1000) {
-      throw new Error("State has expired: timestamp is too old");
-    }
-
-    // Validate redirectUri is from allowed origins
-    const redirectUri = stateData.redirectUri;
-    if (!isValidRedirectUri(redirectUri)) {
-      throw new Error("Invalid redirect URI: not in whitelist");
-    }
-
-    return redirectUri;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    throw new Error(`Invalid state: ${message}`);
-  }
-}
-
-/**
- * Generate HMAC-SHA256 signature for OAuth state
- * Uses JWT_SECRET as the key
- */
-function generateSignature(redirectUri: string, nonce: string, timestamp: number): string {
-  const message = `${redirectUri}:${nonce}:${timestamp}`;
-  const hmac = createHmac("sha256", ENV.cookieSecret);
-  hmac.update(message);
-  return hmac.digest("hex");
-}
-
-/**
- * Validate redirect URI against whitelist
- * Allows localhost for development and configured production URLs
- */
-function isValidRedirectUri(redirectUri: string): boolean {
-  try {
-    const url = new URL(redirectUri);
-
-    // Allow localhost for development
-    if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
-      return true;
-    }
-
-    // Allow configured production URL
-    if (ENV.forgeApiUrl) {
-      const apiUrl = new URL(ENV.forgeApiUrl);
-      if (url.origin === apiUrl.origin) {
-        return true;
-      }
-    }
-
-    // Allow common Manus domains
-    if (url.hostname.endsWith(".manus.space") || url.hostname.endsWith(".manus.im")) {
-      return true;
-    }
-
-    return false;
-  } catch {
-    return false;
-  }
+  return decodeAndVerifyOAuthState(state);
 }
 
 /**
@@ -134,9 +42,11 @@ export function registerOAuthRoutes(app: Express) {
 
     try {
       // Verify OAuth state signature and get redirect URI
+      // The state must be signed with HMAC-SHA256 using JWT_SECRET
       const redirectUri = verifyOAuthState(state);
 
       // Exchange code for token
+      // Note: state has already been verified above
       const tokenResponse = await sdk.exchangeCodeForToken(code, state);
       const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
 
@@ -172,12 +82,36 @@ export function registerOAuthRoutes(app: Express) {
 
       // Return 400 for invalid state (CSRF/tampering)
       if (errorMessage.includes("Invalid state")) {
+        console.error("[OAuth] State verification failed:", errorMessage);
         res.status(400).json({ error: "Invalid or expired state parameter" });
         return;
       }
 
       // Return 500 for other errors
       res.status(500).json({ error: "OAuth callback failed" });
+    }
+  });
+
+  /**
+   * Endpoint to sign OAuth state
+   * Client sends unsigned state, server returns signed state
+   */
+  app.post("/api/oauth/sign-state", (req: Request, res: Response) => {
+    try {
+      const { redirectUri, nonce, timestamp } = req.body;
+
+      if (!redirectUri || !nonce || !timestamp) {
+        res.status(400).json({ error: "redirectUri, nonce, and timestamp are required" });
+        return;
+      }
+
+      // Generate signed state
+      const signedState = encodeOAuthState(redirectUri, nonce, timestamp);
+      res.json({ state: signedState });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("[OAuth] State signing failed:", errorMessage);
+      res.status(500).json({ error: "Failed to sign state" });
     }
   });
 }

@@ -46,7 +46,25 @@ function ensureTrailingSlash(value: string): string {
 }
 
 function normalizeKey(relKey: string): string {
-  return relKey.replace(/^\/+/, "");
+  // Remove leading slashes
+  const normalized = relKey.replace(/^\/+/, "");
+
+  // Reject path traversal attempts
+  if (normalized.includes("..") || normalized.includes("\\") || normalized.includes("%2e%2e")) {
+    throw new Error(`Invalid storage key: path traversal detected (${relKey})`);
+  }
+
+  // Only allow alphanumeric, forward slash, underscore, hyphen, and dot
+  if (!/^[a-zA-Z0-9/_\-\.]*$/.test(normalized)) {
+    throw new Error(`Invalid storage key: contains disallowed characters (${relKey})`);
+  }
+
+  // Reject empty keys
+  if (!normalized) {
+    throw new Error("Invalid storage key: empty key");
+  }
+
+  return normalized;
 }
 
 function toFormData(
