@@ -91,6 +91,16 @@ export default function MyCourses() {
     },
   });
 
+  // Import to SRS mutation
+  const importSRSMutation = trpc.srs.addCard.useMutation({
+    onSuccess: () => {
+      toast.success("已導入到 SRS");
+    },
+    onError: (error) => {
+      toast.error(error.message || "導入失敗");
+    },
+  });
+
   useEffect(() => {
     if (coursesList) {
       setCourses(coursesList);
@@ -290,10 +300,33 @@ export default function MyCourses() {
                   )}
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      // TODO: Implement import to SRS
-                      alert("導入 SRS 功能開發中...");
+                    onClick={async () => {
+                      if (!selectedCourse?.vocabulary || selectedCourse.vocabulary.length === 0) {
+                        toast.error("此課程沒有詞彙可導入");
+                        return;
+                      }
+                      
+                      try {
+                        let importedCount = 0;
+                        for (const vocabItem of selectedCourse.vocabulary) {
+                          try {
+                            await importSRSMutation.mutateAsync({
+                              frontText: vocabItem.word || vocabItem,
+                              backText: vocabItem.definition || "",
+                              exampleSentence: vocabItem.usage || undefined,
+                              proficiencyLevel: selectedCourse.proficiencyLevel as any,
+                            });
+                            importedCount++;
+                          } catch (err) {
+                            console.error("Failed to import item:", err);
+                          }
+                        }
+                        toast.success(`已導入 ${importedCount} 個詞彙到 SRS`);
+                      } catch (error) {
+                        toast.error("導入過程中發生錯誤");
+                      }
                     }}
+                    disabled={importSRSMutation.isPending}
                   >
                     <Download className="w-4 h-4 mr-2" />
                     導入 SRS

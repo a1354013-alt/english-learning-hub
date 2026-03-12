@@ -120,7 +120,7 @@ export async function generateDailyContent(
     .from(generatedContent)
     .where(
       and(
-        eq(generatedContent.generatedDate, today as any),
+        eq(generatedContent.generatedDate, today),
         eq(generatedContent.proficiencyLevel, proficiencyLevel)
       )
     );
@@ -143,13 +143,13 @@ export async function generateDailyContent(
 
   const contentItem: InsertGeneratedContent = {
     proficiencyLevel,
-    generatedDate: today as any,
+    generatedDate: today,
     isArchived: false,
     vocabulary: JSON.stringify([vocab]),
     grammar: JSON.stringify({}),
     readingMaterial: JSON.stringify({ phrase, sentence }),
     exercises: JSON.stringify([]),
-  } as any;
+  };
 
   // Insert into database
   const contentItems = [contentItem];

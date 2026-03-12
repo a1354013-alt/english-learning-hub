@@ -222,6 +222,17 @@ class SDKServer {
         return null;
       }
 
+      // Verify appId matches current environment to prevent cross-app token reuse
+      if (appId !== ENV.appId) {
+        console.warn(
+          "[Auth] Session appId mismatch: token appId=",
+          appId,
+          "env appId=",
+          ENV.appId
+        );
+        return null;
+      }
+
       return {
         openId,
         appId,

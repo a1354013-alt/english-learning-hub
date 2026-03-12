@@ -49,7 +49,17 @@ export function registerOAuthRoutes(app: Express) {
   app.get("/api/oauth/start", (req: Request, res: Response) => {
     try {
       // Get redirect path from query parameter (default to "/")
-      const redirectPath = getQueryParam(req, "redirect") || "/";
+      let redirectPath = getQueryParam(req, "redirect") || "/";
+      
+      // Sanitize redirect path: must start with / and not contain protocol
+      // Prevents open redirect attacks like //evil.com or http://evil.com
+      if (!redirectPath.startsWith("/") || redirectPath.includes(":")) {
+        console.warn(
+          "[OAuth] Invalid redirect path attempted:",
+          redirectPath
+        );
+        redirectPath = "/";
+      }
       
       // Construct full redirect URI
       const appOrigin = ENV.appOrigin;

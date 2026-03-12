@@ -121,8 +121,10 @@ export const studyLogs = mysqlTable("studyLogs", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   cardId: int("cardId").notNull(),
-  quality: int("quality").notNull(), // 0-5 quality score
-  reviewedAt: timestamp("reviewedAt").defaultNow().notNull(),
+  activityType: mysqlEnum("activityType", ["review", "video", "writing", "quiz"]).notNull(),
+  quality: int("quality"), // 0-5 quality score (optional, only for review activity)
+  xpEarned: int("xpEarned").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export type StudyLog = typeof studyLogs.$inferSelect;
@@ -215,11 +217,10 @@ export type WritingSubmission = typeof writingSubmissions.$inferSelect;
 export type InsertWritingSubmission = typeof writingSubmissions.$inferInsert;
 
 /**
- * Generated content (daily lessons)
+ * Generated content (daily lessons) - site-wide shared content per proficiency level
  */
 export const generatedContent = mysqlTable("generatedContent", {
   id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
   generatedDate: varchar("generatedDate", { length: 10 }).notNull(), // YYYY-MM-DD
   proficiencyLevel: mysqlEnum("proficiencyLevel", [
     "junior_high",

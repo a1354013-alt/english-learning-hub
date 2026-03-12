@@ -65,6 +65,14 @@ async function checkAndGenerateContent() {
       const timeSinceLastGeneration = now.getTime() - lastExecutedAt.getTime();
 
       if (timeSinceLastGeneration >= CONTENT_GENERATION_INTERVAL) {
+        // Skip if already running (prevents duplicate execution in multi-instance deployments)
+        if (lastState?.status === "running") {
+          console.log(
+            `[Scheduler] Task ${taskName} is already running, skipping...`
+          );
+          continue;
+        }
+
         // Mark as running
         await db
           .insert(schedulerState)
@@ -150,6 +158,14 @@ async function checkAndArchiveContent() {
       .limit(1);
 
     const lastState = state[0];
+    // Skip if already running (prevents duplicate execution in multi-instance deployments)
+    if (lastState?.status === "running") {
+      console.log(
+        `[Scheduler] Task ${taskName} is already running, skipping...`
+      );
+      return;
+    }
+
     const lastExecutedAt = lastState?.lastExecutedAt
       ? new Date(lastState.lastExecutedAt)
       : new Date(0);
