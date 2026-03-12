@@ -36,6 +36,10 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
+  
+  // Trust proxy for correct IP and secure cookies when behind reverse proxy
+  app.set("trust proxy", 1);
+  
   // Request ID middleware
   app.use((req, res, next) => {
     req.requestId = randomUUID();

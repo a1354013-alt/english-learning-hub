@@ -3,7 +3,7 @@
  * Provides functions to generate and verify signed OAuth state
  */
 
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { ENV } from "./env";
 
 /**
@@ -66,13 +66,23 @@ export function decodeAndVerifyOAuthState(state: string): string {
       throw new Error("Invalid state format: missing required fields");
     }
 
-    // Verify signature
+    // Verify signature using constant-time comparison
     const expectedSignature = generateOAuthStateSignature(
       stateData.redirectUri,
       stateData.nonce,
       stateData.timestamp
     );
-    if (stateData.signature !== expectedSignature) {
+    
+    // Check length first to avoid timing attacks
+    if (stateData.signature.length !== expectedSignature.length) {
+      throw new Error("Invalid state signature: signature verification failed");
+    }
+    
+    // Use constant-time comparison to prevent timing attacks
+    if (!timingSafeEqual(
+      Buffer.from(stateData.signature),
+      Buffer.from(expectedSignature)
+    )) {
       throw new Error("Invalid state signature: signature verification failed");
     }
 
