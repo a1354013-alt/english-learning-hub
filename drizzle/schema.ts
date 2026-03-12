@@ -402,3 +402,19 @@ export const aiCourses = mysqlTable(
 
 export type AiCourse = typeof aiCourses.$inferSelect;
 export type InsertAiCourse = typeof aiCourses.$inferInsert;
+
+/**
+ * Scheduler state for tracking last execution times (prevents duplicate execution in multi-instance deployments)
+ */
+export const schedulerState = mysqlTable("schedulerState", {
+  id: int("id").autoincrement().primaryKey(),
+  taskName: varchar("taskName", { length: 64 }).notNull().unique(),
+  lastExecutedAt: timestamp("lastExecutedAt").notNull(),
+  nextScheduledAt: timestamp("nextScheduledAt"),
+  status: mysqlEnum("status", ["pending", "running", "completed", "failed"]).default("pending").notNull(),
+  errorMessage: text("errorMessage"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SchedulerState = typeof schedulerState.$inferSelect;
+export type InsertSchedulerState = typeof schedulerState.$inferInsert;

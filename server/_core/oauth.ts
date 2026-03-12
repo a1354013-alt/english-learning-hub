@@ -5,6 +5,7 @@
 
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import type { Express, Request, Response } from "express";
+import { randomBytes } from "crypto";
 import * as db from "../db";
 import { ENV } from "./env";
 import { getSessionCookieOptions } from "./cookies";
@@ -13,13 +14,11 @@ import { encodeOAuthState, decodeAndVerifyOAuthState } from "./oauth-state";
 
 /**
  * Generate a random nonce for CSRF protection
+ * Uses crypto.randomBytes for secure random generation
  */
 function generateNonce(): string {
-  const array = new Uint8Array(16);
-  for (let i = 0; i < array.length; i++) {
-    array[i] = Math.floor(Math.random() * 256);
-  }
-  return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const bytes = randomBytes(16);
+  return bytes.toString("hex");
 }
 
 /**

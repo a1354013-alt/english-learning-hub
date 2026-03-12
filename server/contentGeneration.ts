@@ -1,13 +1,7 @@
 import { getDb } from "./db";
 import { generatedContent, InsertGeneratedContent } from "../drizzle/schema";
 import { eq, and, lt } from "drizzle-orm";
-
-/**
- * Convert Date to YYYY-MM-DD string format
- */
-function toDateStr(d: Date): string {
-  return d.toISOString().split("T")[0];
-}
+import { toDateStr } from "./db";
 
 /**
  * Content generation system that creates learning materials based on proficiency level
@@ -118,7 +112,7 @@ export async function generateDailyContent(
     throw new Error("Database not available");
   }
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = toDateStr(new Date());
 
   // Check if content already generated for today
   const existing = await db

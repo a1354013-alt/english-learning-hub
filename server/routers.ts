@@ -96,11 +96,11 @@ export const appRouter = router({
     addCard: protectedProcedure
       .input(
         z.object({
-          frontText: z.string(),
-          backText: z.string(),
-          phonetic: z.string().optional(),
-          audioUrl: z.string().optional(),
-          exampleSentence: z.string().optional(),
+          frontText: z.string().max(500),
+          backText: z.string().max(2000),
+          phonetic: z.string().max(100).optional(),
+          audioUrl: z.string().max(500).optional(),
+          exampleSentence: z.string().max(1000).optional(),
           proficiencyLevel: z.enum([
             "junior_high",
             "senior_high",
@@ -128,8 +128,7 @@ export const appRouter = router({
             .limit(1);
           
           if (userDecks.length === 0) {
-            // Create default deck
-            const newDeck = await db.insert(decks).values({
+            await db.insert(decks).values({
               userId: ctx.user.id,
               title: "Default",
               description: "Default deck for flashcards",
@@ -137,13 +136,14 @@ export const appRouter = router({
               createdAt: new Date(),
               updatedAt: new Date(),
             });
-            deckId = newDeck[0]?.insertId;
-            if (!deckId) {
+            const newDecks = await db.select().from(decks).where(eq(decks.userId, ctx.user.id)).limit(1);
+            if (newDecks.length === 0) {
               throw new TRPCError({
                 code: "INTERNAL_SERVER_ERROR",
                 message: "Failed to create default deck",
               });
             }
+            deckId = newDecks[0].id;
           } else {
             deckId = userDecks[0].id;
           }
@@ -211,7 +211,7 @@ export const appRouter = router({
      * Look up a word in the dictionary
      */
     lookup: protectedProcedure
-      .input(z.object({ word: z.string() }))
+      .input(z.object({ word: z.string().max(100) }))
       .query(async ({ input }) => {
         const entry = await getDictionaryEntry(input.word);
         if (entry) {
@@ -228,9 +228,9 @@ export const appRouter = router({
     addWord: protectedProcedure
       .input(
         z.object({
-          word: z.string(),
-          phonetic: z.string().optional(),
-          audioUrl: z.string().optional(),
+          word: z.string().max(100),
+          phonetic: z.string().max(100).optional(),
+          audioUrl: z.string().max(500).optional(),
           definitions: z.unknown(),
           exampleSentences: z.unknown().optional(),
           proficiencyLevel: z.enum([
@@ -370,7 +370,7 @@ export const appRouter = router({
             "college",
             "advanced",
           ]),
-          topic: z.string().optional(),
+          topic: z.string().max(500).optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -418,7 +418,7 @@ export const appRouter = router({
         return result;
       }),
     addNotes: protectedProcedure
-      .input(z.object({ courseId: z.number(), notes: z.string() }))
+      .input(z.object({ courseId: z.number(), notes: z.string().max(5000) }))
       .mutation(async ({ ctx, input }) => {
         const result = await addCourseNotes(ctx.user.id, input.courseId, input.notes);
         return result;

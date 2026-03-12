@@ -23,8 +23,8 @@ function validateEnvironment(): void {
       value: process.env.DATABASE_URL,
       validate: (val: string | undefined) => {
         if (!val) return "DATABASE_URL is required";
-        if (!val.startsWith("mysql://") && !val.startsWith("mysql+srv://")) {
-          return "DATABASE_URL must be a valid MySQL connection string";
+        if (!val.startsWith("mysql://")) {
+          return "DATABASE_URL must start with mysql:// (SRV lookup not supported)";
         }
         return null;
       },

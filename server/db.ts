@@ -19,10 +19,17 @@ import {
 import { ENV } from "./_core/env";
 
 /**
- * Convert Date to YYYY-MM-DD string format
+ * Convert Date to YYYY-MM-DD string format (using Taipei timezone)
+ * Avoids timezone crossing issues (e.g., 00:xx-07:xx UTC becomes yesterday in UTC)
  */
-function toDateStr(d: Date): string {
-  return d.toISOString().split("T")[0];
+export function toDateStr(d: Date): string {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Taipei',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  return formatter.format(d);
 }
 
 let _db: any = null;
@@ -69,6 +76,23 @@ export async function getDb() {
     throw new Error(
       `Failed to connect to database: ${error instanceof Error ? error.message : "Unknown error"}`
     );
+  }
+}
+
+/**
+ * Close database connection pool gracefully
+ * Call this during server shutdown (SIGINT/SIGTERM)
+ */
+export async function closeDb(): Promise<void> {
+  if (_pool) {
+    try {
+      await _pool.end();
+      console.log("[Database] Connection pool closed successfully");
+      _pool = null;
+      _db = null;
+    } catch (error) {
+      console.error("[Database] Error closing connection pool:", error);
+    }
   }
 }
 
@@ -523,7 +547,7 @@ export async function getGeneratedContent(
   date: Date,
   proficiencyLevel: "junior_high" | "senior_high" | "college" | "advanced"
 ) {
-  const dateStr = date.toISOString().split("T")[0];
+  const dateStr = toDateStr(date);
   const db = await getDb();
   if (!db) return [];
 

@@ -1,9 +1,14 @@
 import { generateDailyContent, archiveOldContent } from "./contentGeneration";
+import { getDb } from "./db";
+import { schedulerState } from "../drizzle/schema";
+import { eq } from "drizzle-orm";
 
 /**
  * Scheduler for automated tasks
  * - Generate content every 3 days
  * - Archive old content every 7 days
+ *
+ * Uses database to track execution state for multi-instance deployments
  */
 
 const PROFICIENCY_LEVELS = [
@@ -13,10 +18,6 @@ const PROFICIENCY_LEVELS = [
   "advanced",
 ] as const;
 
-// Track last execution times
-let lastContentGenerationTime: Record<string, Date> = {};
-let lastArchiveTime: Date | null = null;
-
 const CONTENT_GENERATION_INTERVAL = 3 * 24 * 60 * 60 * 1000; // 3 days in milliseconds
 const ARCHIVE_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
@@ -25,12 +26,6 @@ const ARCHIVE_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
  */
 export function initializeScheduler() {
   console.log("[Scheduler] Initializing content generation scheduler...");
-
-  // Initialize last execution times
-  PROFICIENCY_LEVELS.forEach((level) => {
-    lastContentGenerationTime[level] = new Date(0); // Set to epoch so it runs immediately
-  });
-  lastArchiveTime = new Date(0);
 
   // Run content generation check every hour
   setInterval(checkAndGenerateContent, 60 * 60 * 1000);
@@ -45,30 +40,90 @@ export function initializeScheduler() {
  * Check if content needs to be generated and generate if needed
  */
 async function checkAndGenerateContent() {
-  const now = new Date();
+  const db = await getDb();
+  if (!db) {
+    console.error("[Scheduler] Database not available");
+    return;
+  }
 
   for (const level of PROFICIENCY_LEVELS) {
-    const lastGeneration = lastContentGenerationTime[level] || new Date(0);
-    const timeSinceLastGeneration = now.getTime() - lastGeneration.getTime();
+    const taskName = `content_generation_${level}`;
+    const now = new Date();
 
-    if (timeSinceLastGeneration >= CONTENT_GENERATION_INTERVAL) {
-      try {
+    try {
+      // Get current state from DB
+      const state = await db
+        .select()
+        .from(schedulerState)
+        .where(eq(schedulerState.taskName, taskName))
+        .limit(1);
+
+      const lastState = state[0];
+      const lastExecutedAt = lastState?.lastExecutedAt
+        ? new Date(lastState.lastExecutedAt)
+        : new Date(0);
+      const timeSinceLastGeneration = now.getTime() - lastExecutedAt.getTime();
+
+      if (timeSinceLastGeneration >= CONTENT_GENERATION_INTERVAL) {
+        // Mark as running
+        await db
+          .insert(schedulerState)
+          .values({
+            taskName,
+            lastExecutedAt: now,
+            status: "running",
+          })
+          .onDuplicateKeyUpdate({
+            set: {
+              status: "running",
+              lastExecutedAt: now,
+              errorMessage: null,
+            },
+          });
+
         console.log(
           `[Scheduler] Generating content for level: ${level} at ${now.toISOString()}`
         );
+
         await generateDailyContent(
           level as "junior_high" | "senior_high" | "college" | "advanced"
         );
-        lastContentGenerationTime[level] = now;
+
+        // Mark as completed
+        const nextScheduledAt = new Date(now.getTime() + CONTENT_GENERATION_INTERVAL);
+        await db
+          .update(schedulerState)
+          .set({
+            status: "completed",
+            lastExecutedAt: now,
+            nextScheduledAt,
+            errorMessage: null,
+          })
+          .where(eq(schedulerState.taskName, taskName));
+
         console.log(
           `[Scheduler] Successfully generated content for level: ${level}`
         );
-      } catch (error) {
-        console.error(
-          `[Scheduler] Failed to generate content for level ${level}:`,
-          error
-        );
       }
+    } catch (error) {
+      console.error(
+        `[Scheduler] Failed to generate content for level ${level}:`,
+        error
+      );
+
+      // Mark as failed
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      await db
+        .update(schedulerState)
+        .set({
+          status: "failed",
+          errorMessage,
+        })
+        .where(eq(schedulerState.taskName, taskName))
+        .catch((err: unknown) => {
+          console.error("[Scheduler] Failed to update error state:", err);
+        });
     }
   }
 }
@@ -77,19 +132,80 @@ async function checkAndGenerateContent() {
  * Check if old content needs to be archived and archive if needed
  */
 async function checkAndArchiveContent() {
-  const now = new Date();
-  const lastArchive = lastArchiveTime || new Date(0);
-  const timeSinceLastArchive = now.getTime() - lastArchive.getTime();
+  const db = await getDb();
+  if (!db) {
+    console.error("[Scheduler] Database not available");
+    return;
+  }
 
-  if (timeSinceLastArchive >= ARCHIVE_INTERVAL) {
-    try {
+  const taskName = "archive_old_content";
+  const now = new Date();
+
+  try {
+    // Get current state from DB
+    const state = await db
+      .select()
+      .from(schedulerState)
+      .where(eq(schedulerState.taskName, taskName))
+      .limit(1);
+
+    const lastState = state[0];
+    const lastExecutedAt = lastState?.lastExecutedAt
+      ? new Date(lastState.lastExecutedAt)
+      : new Date(0);
+    const timeSinceLastArchive = now.getTime() - lastExecutedAt.getTime();
+
+    if (timeSinceLastArchive >= ARCHIVE_INTERVAL) {
+      // Mark as running
+      await db
+        .insert(schedulerState)
+        .values({
+          taskName,
+          lastExecutedAt: now,
+          status: "running",
+        })
+        .onDuplicateKeyUpdate({
+          set: {
+            status: "running",
+            lastExecutedAt: now,
+            errorMessage: null,
+          },
+        });
+
       console.log(`[Scheduler] Archiving old content at ${now.toISOString()}`);
+
       await archiveOldContent();
-      lastArchiveTime = now;
+
+      // Mark as completed
+      const nextScheduledAt = new Date(now.getTime() + ARCHIVE_INTERVAL);
+      await db
+        .update(schedulerState)
+        .set({
+          status: "completed",
+          lastExecutedAt: now,
+          nextScheduledAt,
+          errorMessage: null,
+        })
+        .where(eq(schedulerState.taskName, taskName));
+
       console.log("[Scheduler] Successfully archived old content");
-    } catch (error) {
-      console.error("[Scheduler] Failed to archive old content:", error);
     }
+  } catch (error) {
+    console.error("[Scheduler] Failed to archive old content:", error);
+
+    // Mark as failed
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    await db
+      .update(schedulerState)
+      .set({
+        status: "failed",
+        errorMessage,
+      })
+      .where(eq(schedulerState.taskName, taskName))
+      .catch((err: unknown) => {
+        console.error("[Scheduler] Failed to update error state:", err);
+      });
   }
 }
 
@@ -100,9 +216,10 @@ export async function triggerContentGeneration(
   level: "junior_high" | "senior_high" | "college" | "advanced"
 ) {
   try {
-    console.log(`[Scheduler] Manually triggering content generation for: ${level}`);
+    console.log(
+      `[Scheduler] Manually triggering content generation for: ${level}`
+    );
     const content = await generateDailyContent(level);
-    lastContentGenerationTime[level] = new Date();
     return {
       success: true,
       data: content,
@@ -126,7 +243,6 @@ export async function triggerArchive() {
   try {
     console.log("[Scheduler] Manually triggering archive");
     await archiveOldContent();
-    lastArchiveTime = new Date();
     return {
       success: true,
     };
@@ -142,19 +258,33 @@ export async function triggerArchive() {
 /**
  * Get scheduler status
  */
-export function getSchedulerStatus() {
+export async function getSchedulerStatus() {
+  const db = await getDb();
+  if (!db) {
+    return {
+      error: "Database not available",
+    };
+  }
+
+  const states = await db.select().from(schedulerState);
   return {
-    lastContentGenerationTimes: lastContentGenerationTime,
-    lastArchiveTime,
+    states,
     nextContentGenerationTimes: Object.fromEntries(
       PROFICIENCY_LEVELS.map((level) => {
-        const lastGen = lastContentGenerationTime[level] || new Date(0);
-        const nextGen = new Date(lastGen.getTime() + CONTENT_GENERATION_INTERVAL);
-        return [level, nextGen.toISOString()];
+        const taskName = `content_generation_${level}`;
+        const state = states.find((s: any) => s.taskName === taskName);
+        const nextGen = state?.nextScheduledAt
+          ? new Date(state.nextScheduledAt).toISOString()
+          : "Pending";
+        return [level, nextGen];
       })
     ),
-    nextArchiveTime: lastArchiveTime
-      ? new Date(lastArchiveTime.getTime() + ARCHIVE_INTERVAL).toISOString()
+    nextArchiveTime: states.find((s: any) => s.taskName === "archive_old_content")
+      ?.nextScheduledAt
+      ? new Date(
+          states.find((s: any) => s.taskName === "archive_old_content")!
+            .nextScheduledAt!
+        ).toISOString()
       : "Pending",
   };
 }

@@ -8,6 +8,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { initializeScheduler } from "../scheduler";
+import { closeDb } from "../db";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -63,6 +64,24 @@ async function startServer() {
     // Initialize scheduler for automated tasks
     initializeScheduler();
   });
+
+  // Graceful shutdown handlers
+  const shutdown = async (signal: string) => {
+    console.log(`[Server] Received ${signal}, shutting down gracefully...`);
+    server.close(async () => {
+      console.log("[Server] HTTP server closed");
+      await closeDb();
+      process.exit(0);
+    });
+    // Force exit after 10 seconds
+    setTimeout(() => {
+      console.error("[Server] Forced shutdown after timeout");
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
 
 startServer().catch(console.error);
