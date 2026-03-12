@@ -79,9 +79,10 @@ export function decodeAndVerifyOAuthState(state: string): string {
     }
     
     // Use constant-time comparison to prevent timing attacks
+    // Both signature and expectedSignature are hex strings from HMAC digest
     if (!timingSafeEqual(
-      Buffer.from(stateData.signature),
-      Buffer.from(expectedSignature)
+      Buffer.from(stateData.signature, "hex"),
+      Buffer.from(expectedSignature, "hex")
     )) {
       throw new Error("Invalid state signature: signature verification failed");
     }
