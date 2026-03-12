@@ -45,22 +45,28 @@ export type InsertUser = typeof users.$inferInsert;
 /**
  * Flashcard decks (collections of cards)
  */
-export const decks = mysqlTable("decks", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  title: varchar("title", { length: 255 }).notNull(),
-  description: text("description"),
-  isPublic: boolean("isPublic").default(false).notNull(),
-  proficiencyLevel: mysqlEnum("proficiencyLevel", [
-    "junior_high",
-    "senior_high",
-    "college",
-    "advanced",
-  ]).notNull(),
-  cardCount: int("cardCount").default(0).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+export const decks = mysqlTable(
+  "decks",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    description: text("description"),
+    isPublic: boolean("isPublic").default(false).notNull(),
+    proficiencyLevel: mysqlEnum("proficiencyLevel", [
+      "junior_high",
+      "senior_high",
+      "college",
+      "advanced",
+    ]).notNull(),
+    cardCount: int("cardCount").default(0).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    userIdTitleIdx: index("decks_userId_title_idx").on(table.userId, table.title),
+  })
+);
 
 export type Deck = typeof decks.$inferSelect;
 export type InsertDeck = typeof decks.$inferInsert;
@@ -100,9 +106,8 @@ export const cards = mysqlTable(
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
   (table) => ({
-    nextReviewIdx: index("nextReviewIdx").on(table.nextReviewAt),
-    userIdIdx: index("userIdIdx").on(table.userId),
-    deckIdIdx: index("deckIdIdx").on(table.deckId),
+    userIdIdx: index("cards_userId_idx").on(table.userId),
+    deckIdIdx: index("cards_deckId_idx").on(table.deckId),
   })
 );
 
@@ -110,29 +115,15 @@ export type Card = typeof cards.$inferSelect;
 export type InsertCard = typeof cards.$inferInsert;
 
 /**
- * Study logs for tracking user activity and XP
+ * Study logs for tracking user progress
  */
-export const studyLogs = mysqlTable(
-  "studyLogs",
-  {
-    id: int("id").autoincrement().primaryKey(),
-    userId: int("userId").notNull(),
-    cardId: int("cardId"),
-    activityType: mysqlEnum("activityType", [
-      "review",
-      "video",
-      "writing",
-      "quiz",
-    ]).notNull(),
-    quality: int("quality"), // 0-5 for review quality (SRS)
-    xpEarned: int("xpEarned").default(0).notNull(),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-  },
-  (table) => ({
-    userIdIdx: index("userIdIdx").on(table.userId),
-    createdAtIdx: index("createdAtIdx").on(table.createdAt),
-  })
-);
+export const studyLogs = mysqlTable("studyLogs", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  cardId: int("cardId").notNull(),
+  quality: int("quality").notNull(), // 0-5 quality score
+  reviewedAt: timestamp("reviewedAt").defaultNow().notNull(),
+});
 
 export type StudyLog = typeof studyLogs.$inferSelect;
 export type InsertStudyLog = typeof studyLogs.$inferInsert;
@@ -140,207 +131,139 @@ export type InsertStudyLog = typeof studyLogs.$inferInsert;
 /**
  * Daily sign-in tracking
  */
-export const dailySignIns = mysqlTable(
-  "dailySignIns",
-  {
-    id: int("id").autoincrement().primaryKey(),
-    userId: int("userId").notNull(),
-    signInDate: date("signInDate").notNull(),
-    xpEarned: int("xpEarned").default(10).notNull(),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-  },
-  (table) => ({
-    userIdDateIdx: index("userIdDateIdx").on(table.userId, table.signInDate),
-  })
-);
+export const dailySignIns = mysqlTable("dailySignIns", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  signedInDate: date("signedInDate").notNull(),
+  xpEarned: int("xpEarned").default(10).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
 
 export type DailySignIn = typeof dailySignIns.$inferSelect;
 export type InsertDailySignIn = typeof dailySignIns.$inferInsert;
 
 /**
- * Dictionary cache for offline lookup and custom vocabulary
+ * Dictionary cache for vocabulary lookups
  */
-export const dictionaryCache = mysqlTable(
-  "dictionaryCache",
-  {
-    id: int("id").autoincrement().primaryKey(),
-    word: varchar("word", { length: 255 }).notNull().unique(),
-    phonetic: varchar("phonetic", { length: 255 }),
-    audioUrl: varchar("audioUrl", { length: 512 }),
-    definitions: json("definitions").notNull(), // Array of definitions
-    exampleSentences: json("exampleSentences"), // Array of examples
-    proficiencyLevel: mysqlEnum("proficiencyLevel", [
-      "junior_high",
-      "senior_high",
-      "college",
-      "advanced",
-    ]).notNull(),
-    frequency: int("frequency").default(0).notNull(), // How many times looked up
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  },
-  (table) => ({
-    wordIdx: index("wordIdx").on(table.word),
-  })
-);
+export const dictionaryCache = mysqlTable("dictionaryCache", {
+  id: int("id").autoincrement().primaryKey(),
+  word: varchar("word", { length: 255 }).notNull().unique(),
+  definition: text("definition").notNull(),
+  exampleSentence: text("exampleSentence"),
+  chineseTranslation: text("chineseTranslation"),
+  audioUrl: varchar("audioUrl", { length: 512 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
 
-export type DictionaryCache = typeof dictionaryCache.$inferSelect;
-export type InsertDictionaryCache = typeof dictionaryCache.$inferInsert;
+export type DictionaryEntry = typeof dictionaryCache.$inferSelect;
+export type InsertDictionaryEntry = typeof dictionaryCache.$inferInsert;
 
 /**
- * Videos for immersive learning
+ * Learning videos
  */
-export const videos = mysqlTable(
-  "videos",
-  {
-    id: int("id").autoincrement().primaryKey(),
-    youtubeId: varchar("youtubeId", { length: 255 }).notNull().unique(),
-    title: varchar("title", { length: 255 }).notNull(),
-    description: text("description"),
-    transcript: json("transcript").notNull(), // Array of {start, duration, text}
-    proficiencyLevel: mysqlEnum("proficiencyLevel", [
-      "junior_high",
-      "senior_high",
-      "college",
-      "advanced",
-    ]).notNull(),
-    durationSeconds: int("durationSeconds"),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  },
-  (table) => ({
-    youtubeIdIdx: index("youtubeIdIdx").on(table.youtubeId),
-  })
-);
+export const videos = mysqlTable("videos", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  url: varchar("url", { length: 512 }).notNull(),
+  proficiencyLevel: mysqlEnum("proficiencyLevel", [
+    "junior_high",
+    "senior_high",
+    "college",
+    "advanced",
+  ]).notNull(),
+  duration: int("duration"), // in seconds
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
 
 export type Video = typeof videos.$inferSelect;
 export type InsertVideo = typeof videos.$inferInsert;
 
 /**
- * Writing challenges for daily writing practice
+ * Writing challenges
  */
-export const writingChallenges = mysqlTable(
-  "writingChallenges",
-  {
-    id: int("id").autoincrement().primaryKey(),
-    topic: varchar("topic", { length: 255 }).notNull(),
-    prompt: text("prompt").notNull(),
-    proficiencyLevel: mysqlEnum("proficiencyLevel", [
-      "junior_high",
-      "senior_high",
-      "college",
-      "advanced",
-    ]).notNull(),
-    createdDate: date("createdDate").notNull(),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-  },
-  (table) => ({
-    createdDateIdx: index("createdDateIdx").on(table.createdDate),
-  })
-);
+export const writingChallenges = mysqlTable("writingChallenges", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  prompt: text("prompt").notNull(),
+  proficiencyLevel: mysqlEnum("proficiencyLevel", [
+    "junior_high",
+    "senior_high",
+    "college",
+    "advanced",
+  ]).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
 
 export type WritingChallenge = typeof writingChallenges.$inferSelect;
 export type InsertWritingChallenge = typeof writingChallenges.$inferInsert;
 
 /**
- * User writing submissions
+ * Writing submissions
  */
-export const writingSubmissions = mysqlTable(
-  "writingSubmissions",
-  {
-    id: int("id").autoincrement().primaryKey(),
-    userId: int("userId").notNull(),
-    challengeId: int("challengeId").notNull(),
-    content: text("content").notNull(),
-    errors: json("errors"), // Array of {position, error, suggestion}
-    score: int("score"), // 0-100
-    xpEarned: int("xpEarned").default(0).notNull(),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  },
-  (table) => ({
-    userIdIdx: index("userIdIdx").on(table.userId),
-    challengeIdIdx: index("challengeIdIdx").on(table.challengeId),
-  })
-);
+export const writingSubmissions = mysqlTable("writingSubmissions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  challengeId: int("challengeId").notNull(),
+  content: text("content").notNull(),
+  feedback: text("feedback"),
+  score: int("score"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
 
 export type WritingSubmission = typeof writingSubmissions.$inferSelect;
 export type InsertWritingSubmission = typeof writingSubmissions.$inferInsert;
 
 /**
- * Auto-generated content for daily learning
+ * Generated content (daily lessons)
  */
-export const generatedContent = mysqlTable(
-  "generatedContent",
-  {
-    id: int("id").autoincrement().primaryKey(),
-    contentType: mysqlEnum("contentType", [
-      "vocabulary",
-      "phrase",
-      "sentence",
-      "passage",
-    ]).notNull(),
-    content: text("content").notNull(),
-    definition: text("definition"),
-    exampleUsage: text("exampleUsage"),
-    proficiencyLevel: mysqlEnum("proficiencyLevel", [
-      "junior_high",
-      "senior_high",
-      "college",
-      "advanced",
-    ]).notNull(),
-    generatedDate: date("generatedDate").notNull(),
-    isArchived: boolean("isArchived").default(false).notNull(),
-    archivedDate: date("archivedDate"),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-  },
-  (table) => ({
-    generatedDateIdx: index("generatedDateIdx").on(table.generatedDate),
-    proficiencyLevelIdx: index("proficiencyLevelIdx").on(
-      table.proficiencyLevel
-    ),
-  })
-);
+export const generatedContent = mysqlTable("generatedContent", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  generatedDate: varchar("generatedDate", { length: 10 }).notNull(), // YYYY-MM-DD
+  proficiencyLevel: mysqlEnum("proficiencyLevel", [
+    "junior_high",
+    "senior_high",
+    "college",
+    "advanced",
+  ]).notNull(),
+  vocabulary: json("vocabulary"),
+  grammar: json("grammar"),
+  readingMaterial: json("readingMaterial"),
+  exercises: json("exercises"),
+  isArchived: boolean("isArchived").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
 
 export type GeneratedContent = typeof generatedContent.$inferSelect;
 export type InsertGeneratedContent = typeof generatedContent.$inferInsert;
 
 /**
- * Content archive for organizing learned materials
+ * Content archive (historical records)
  */
-export const contentArchive = mysqlTable(
-  "contentArchive",
-  {
-    id: int("id").autoincrement().primaryKey(),
-    userId: int("userId").notNull(),
-    contentId: int("contentId").notNull(),
-    contentType: mysqlEnum("contentType", [
-      "card",
-      "video",
-      "writing",
-      "generated",
-    ]).notNull(),
-    archivedDate: date("archivedDate").notNull(),
-    proficiencyLevel: mysqlEnum("proficiencyLevel", [
-      "junior_high",
-      "senior_high",
-      "college",
-      "advanced",
-    ]).notNull(),
-    notes: text("notes"),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-  },
-  (table) => ({
-    userIdIdx: index("userIdIdx").on(table.userId),
-    archivedDateIdx: index("archivedDateIdx").on(table.archivedDate),
-  })
-);
+export const contentArchive = mysqlTable("contentArchive", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  generatedDate: varchar("generatedDate", { length: 10 }).notNull(), // YYYY-MM-DD
+  archivedDate: varchar("archivedDate", { length: 10 }).notNull(), // YYYY-MM-DD
+  proficiencyLevel: mysqlEnum("proficiencyLevel", [
+    "junior_high",
+    "senior_high",
+    "college",
+    "advanced",
+  ]).notNull(),
+  vocabulary: json("vocabulary"),
+  grammar: json("grammar"),
+  readingMaterial: json("readingMaterial"),
+  exercises: json("exercises"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
 
 export type ContentArchive = typeof contentArchive.$inferSelect;
 export type InsertContentArchive = typeof contentArchive.$inferInsert;
 
 /**
- * Learning path configuration
+ * Learning paths (user progress tracking)
  */
 export const learningPaths = mysqlTable("learningPaths", {
   id: int("id").autoincrement().primaryKey(),
@@ -350,15 +273,19 @@ export const learningPaths = mysqlTable("learningPaths", {
     "senior_high",
     "college",
     "advanced",
-  ]).notNull(),
+  ])
+    .default("junior_high")
+    .notNull(),
   targetLevel: mysqlEnum("targetLevel", [
     "junior_high",
     "senior_high",
     "college",
     "advanced",
-  ]).notNull(),
-  completionPercentage: int("completionPercentage").default(0).notNull(),
-  estimatedDaysToTarget: int("estimatedDaysToTarget"),
+  ])
+    .default("advanced")
+    .notNull(),
+  completedLessons: int("completedLessons").default(0).notNull(),
+  totalXp: int("totalXp").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -366,52 +293,47 @@ export const learningPaths = mysqlTable("learningPaths", {
 export type LearningPath = typeof learningPaths.$inferSelect;
 export type InsertLearningPath = typeof learningPaths.$inferInsert;
 
-
 /**
  * AI-generated courses
  */
-export const aiCourses = mysqlTable(
-  "aiCourses",
-  {
-    id: int("id").autoincrement().primaryKey(),
-    userId: int("userId").notNull(),
-    title: varchar("title", { length: 255 }).notNull(),
-    topic: varchar("topic", { length: 255 }),
-    proficiencyLevel: mysqlEnum("proficiencyLevel", [
-      "junior_high",
-      "senior_high",
-      "college",
-      "advanced",
-    ]).notNull(),
-    vocabulary: json("vocabulary"), // Array of vocabulary items
-    grammar: json("grammar"), // Grammar explanation
-    readingMaterial: json("readingMaterial"), // Reading passage
-    exercises: json("exercises"), // Array of exercises
-    isCompleted: boolean("isCompleted").default(false).notNull(),
-    rating: int("rating"), // 1-5 star rating
-    notes: text("notes"), // User notes
-    generatedAt: timestamp("generatedAt").defaultNow().notNull(),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  },
-  (table) => ({
-    userIdIdx: index("userIdIdx").on(table.userId),
-    generatedAtIdx: index("generatedAtIdx").on(table.generatedAt),
-  })
-);
+export const aiCourses = mysqlTable("aiCourses", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  proficiencyLevel: mysqlEnum("proficiencyLevel", [
+    "junior_high",
+    "senior_high",
+    "college",
+    "advanced",
+  ]).notNull(),
+  vocabulary: json("vocabulary"),
+  grammar: json("grammar"),
+  readingMaterial: json("readingMaterial"),
+  exercises: json("exercises"),
+  rating: int("rating"),
+  notes: text("notes"),
+  isCompleted: boolean("isCompleted").default(false).notNull(),
+  generatedAt: timestamp("generatedAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
 
 export type AiCourse = typeof aiCourses.$inferSelect;
 export type InsertAiCourse = typeof aiCourses.$inferInsert;
 
 /**
- * Scheduler state for tracking last execution times (prevents duplicate execution in multi-instance deployments)
+ * Scheduler state for multi-instance coordination
  */
 export const schedulerState = mysqlTable("schedulerState", {
   id: int("id").autoincrement().primaryKey(),
   taskName: varchar("taskName", { length: 64 }).notNull().unique(),
   lastExecutedAt: timestamp("lastExecutedAt").notNull(),
   nextScheduledAt: timestamp("nextScheduledAt"),
-  status: mysqlEnum("status", ["pending", "running", "completed", "failed"]).default("pending").notNull(),
+  status: mysqlEnum("status", ["pending", "running", "completed", "failed"])
+    .default("pending")
+    .notNull(),
   errorMessage: text("errorMessage"),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

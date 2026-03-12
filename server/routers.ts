@@ -136,6 +136,7 @@ export const appRouter = router({
                 userId: ctx.user.id,
                 title: "Default",
                 description: "Default deck for flashcards",
+                proficiencyLevel: input.proficiencyLevel,
                 cardCount: 0,
                 createdAt: new Date(),
                 updatedAt: new Date(),
@@ -449,7 +450,7 @@ export const appRouter = router({
               description: "Imported from AI course: " + courseData.title,
               proficiencyLevel: courseData.proficiencyLevel,
             });
-            deckId = deckResult[0].insertId;
+            deckId = deckResult.insertId as number;
           }
           const vocabulary = courseData.vocabulary ? JSON.parse(courseData.vocabulary as any) : [];
           const cardInserts = vocabulary.map((vocab: any) => ({

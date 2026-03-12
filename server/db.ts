@@ -334,7 +334,7 @@ export async function checkDailySignIn(userId: number) {
     .select()
     .from(dailySignIns)
     .where(
-      and(eq(dailySignIns.userId, userId), eq(dailySignIns.signInDate, todayStr as any))
+      and(eq(dailySignIns.userId, userId), eq(dailySignIns.signedInDate, todayStr as any))
     )
     .limit(1);
 
@@ -379,7 +379,7 @@ export async function recordDailySignIn(userId: number) {
     .where(
       and(
         eq(dailySignIns.userId, userId),
-        eq(dailySignIns.signInDate, yesterdayStr as any)
+        eq(dailySignIns.signedInDate, yesterdayStr as any)
       )
     )
     .limit(1);
@@ -390,7 +390,7 @@ export async function recordDailySignIn(userId: number) {
   // Record sign-in
   await db.insert(dailySignIns).values({
     userId,
-    signInDate: todayStr as any,
+    signedInDate: todayStr as any,
     xpEarned: 10,
   });
 
@@ -406,7 +406,7 @@ export async function recordDailySignIn(userId: number) {
     .where(eq(users.id, userId));
 
   return {
-    signInDate: todayStr as any,
+    signedInDate: todayStr as any,
     xpEarned: 10,
     currentStreak: newStreak,
     longestStreak: newLongestStreak,
@@ -616,7 +616,7 @@ export async function saveAiCourse(
     isCompleted: false,
   });
 
-  return { success: true, courseId: result[0].insertId };
+  return { success: true, courseId: result.insertId as number };
 }
 
 /**

@@ -141,26 +141,4 @@ export function registerOAuthRoutes(app: Express) {
     }
   });
 
-  /**
-   * Endpoint to sign OAuth state
-   * Client sends unsigned state, server returns signed state
-   */
-  app.post("/api/oauth/sign-state", (req: Request, res: Response) => {
-    try {
-      const { redirectUri, nonce, timestamp } = req.body;
-
-      if (!redirectUri || !nonce || !timestamp) {
-        res.status(400).json({ error: "redirectUri, nonce, and timestamp are required" });
-        return;
-      }
-
-      // Generate signed state
-      const signedState = encodeOAuthState(redirectUri, nonce, timestamp);
-      res.json({ state: signedState });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      console.error("[OAuth] State signing failed:", errorMessage);
-      res.status(500).json({ error: "Failed to sign state" });
-    }
-  });
 }

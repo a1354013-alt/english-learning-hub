@@ -134,45 +134,25 @@ export async function generateDailyContent(
   const phrasePool = PHRASES_POOLS[proficiencyLevel];
   const sentencePool = SENTENCES_POOLS[proficiencyLevel];
 
-  const contentItems: InsertGeneratedContent[] = [];
-
   // Pick random vocabulary
   const vocab = vocabPool[Math.floor(Math.random() * vocabPool.length)];
-  contentItems.push({
-    contentType: "vocabulary",
-    content: vocab.word,
-    definition: vocab.definition,
-    exampleUsage: vocab.usage,
-    proficiencyLevel,
-    generatedDate: today as any,
-    isArchived: false,
-  });
-
   // Pick random phrase
   const phrase = phrasePool[Math.floor(Math.random() * phrasePool.length)];
-  contentItems.push({
-    contentType: "phrase",
-    content: phrase.phrase,
-    definition: phrase.definition,
-    exampleUsage: phrase.usage,
-    proficiencyLevel,
-    generatedDate: today as any,
-    isArchived: false,
-  });
-
   // Pick random sentence
   const sentence = sentencePool[Math.floor(Math.random() * sentencePool.length)];
-  contentItems.push({
-    contentType: "sentence",
-    content: sentence.sentence,
-    definition: sentence.definition,
-    exampleUsage: sentence.usage,
+
+  const contentItem: InsertGeneratedContent = {
     proficiencyLevel,
     generatedDate: today as any,
     isArchived: false,
-  });
+    vocabulary: JSON.stringify([vocab]),
+    grammar: JSON.stringify({}),
+    readingMaterial: JSON.stringify({ phrase, sentence }),
+    exercises: JSON.stringify([]),
+  } as any;
 
   // Insert into database
+  const contentItems = [contentItem];
   await db.insert(generatedContent).values(contentItems);
 
   return contentItems;
