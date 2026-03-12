@@ -452,7 +452,8 @@ export const appRouter = router({
             });
             deckId = deckResult.insertId as number;
           }
-          const vocabulary = courseData.vocabulary ? JSON.parse(courseData.vocabulary as any) : [];
+          // vocabulary is already an array from Drizzle
+          const vocabulary = Array.isArray(courseData.vocabulary) ? courseData.vocabulary : [];
           const cardInserts = vocabulary.map((vocab: any) => ({
             userId: ctx.user.id,
             deckId,

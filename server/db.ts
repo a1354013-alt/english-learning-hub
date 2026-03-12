@@ -334,7 +334,7 @@ export async function checkDailySignIn(userId: number) {
     .select()
     .from(dailySignIns)
     .where(
-      and(eq(dailySignIns.userId, userId), eq(dailySignIns.signedInDate, todayStr as any))
+      and(eq(dailySignIns.userId, userId), eq(dailySignIns.signedInDate, todayStr))
     )
     .limit(1);
 
@@ -379,7 +379,7 @@ export async function recordDailySignIn(userId: number) {
     .where(
       and(
         eq(dailySignIns.userId, userId),
-        eq(dailySignIns.signedInDate, yesterdayStr as any)
+        eq(dailySignIns.signedInDate, yesterdayStr)
       )
     )
     .limit(1);
@@ -390,7 +390,7 @@ export async function recordDailySignIn(userId: number) {
   // Record sign-in
   await db.insert(dailySignIns).values({
     userId,
-    signedInDate: todayStr as any,
+    signedInDate: todayStr,
     xpEarned: 10,
   });
 
@@ -406,7 +406,7 @@ export async function recordDailySignIn(userId: number) {
     .where(eq(users.id, userId));
 
   return {
-    signedInDate: todayStr as any,
+    signedInDate: todayStr,
     xpEarned: 10,
     currentStreak: newStreak,
     longestStreak: newLongestStreak,
@@ -556,7 +556,7 @@ export async function getGeneratedContent(
     .from(generatedContent)
     .where(
       and(
-        eq(generatedContent.generatedDate, dateStr as any),
+        eq(generatedContent.generatedDate, dateStr),
         eq(generatedContent.proficiencyLevel, proficiencyLevel),
         eq(generatedContent.isArchived, false)
       )
@@ -571,18 +571,14 @@ export async function archiveGeneratedContent(contentId: number) {
   const db = await getDb();
   if (!db) return null;
 
-  const todayStr = toDateStr(new Date());
-  const archivedDateStr = todayStr;
-
   await db
     .update(generatedContent)
     .set({
       isArchived: true,
-      archivedDate: archivedDateStr as any,
     })
     .where(eq(generatedContent.id, contentId));
 
-  return { contentId, archivedDate: archivedDateStr };
+  return { contentId, success: true };
 }
 
 
@@ -607,11 +603,11 @@ export async function saveAiCourse(
     userId,
     title: course.title,
     topic: course.topic,
-    proficiencyLevel: course.proficiencyLevel as any,
-    vocabulary: JSON.stringify(course.content.vocabulary || []),
-    grammar: JSON.stringify(course.content.grammar || {}),
-    readingMaterial: JSON.stringify(course.content.readingMaterial || {}),
-    exercises: JSON.stringify(course.content.exercises || []),
+    proficiencyLevel: course.proficiencyLevel,
+    vocabulary: course.content.vocabulary || [],
+    grammar: course.content.grammar || {},
+    readingMaterial: course.content.readingMaterial || {},
+    exercises: course.content.exercises || [],
     generatedAt: new Date(),
     isCompleted: false,
   });
@@ -641,12 +637,13 @@ export async function getAiCourses(
     .offset(offset)
     .orderBy(desc(aiCourses.generatedAt));
 
+  // Objects are already parsed by Drizzle from JSON columns
   return courses.map((course: any) => ({
     ...course,
-    vocabulary: course.vocabulary ? JSON.parse(course.vocabulary) : [],
-    grammar: course.grammar ? JSON.parse(course.grammar) : {},
-    readingMaterial: course.readingMaterial ? JSON.parse(course.readingMaterial) : {},
-    exercises: course.exercises ? JSON.parse(course.exercises) : [],
+    vocabulary: Array.isArray(course.vocabulary) ? course.vocabulary : [],
+    grammar: typeof course.grammar === 'object' && course.grammar !== null ? course.grammar : {},
+    readingMaterial: typeof course.readingMaterial === 'object' && course.readingMaterial !== null ? course.readingMaterial : {},
+    exercises: Array.isArray(course.exercises) ? course.exercises : [],
   }));
 }
 

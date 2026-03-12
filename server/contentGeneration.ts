@@ -145,10 +145,10 @@ export async function generateDailyContent(
     proficiencyLevel,
     generatedDate: today,
     isArchived: false,
-    vocabulary: JSON.stringify([vocab]),
-    grammar: JSON.stringify({}),
-    readingMaterial: JSON.stringify({ phrase, sentence }),
-    exercises: JSON.stringify([]),
+    vocabulary: [vocab],
+    grammar: {},
+    readingMaterial: { phrase, sentence },
+    exercises: [],
   };
 
   // Insert into database
@@ -170,18 +170,16 @@ export async function archiveOldContent() {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const thirtyDaysAgoStr = toDateStr(thirtyDaysAgo);
-  const archivedDateStr = toDateStr(new Date());
 
   // Archive old content
   const result = await db
     .update(generatedContent)
     .set({
       isArchived: true,
-      archivedDate: archivedDateStr as any,
     })
     .where(
       and(
-        lt(generatedContent.generatedDate, thirtyDaysAgoStr as any),
+        lt(generatedContent.generatedDate, thirtyDaysAgoStr),
         eq(generatedContent.isArchived, false)
       )
     );

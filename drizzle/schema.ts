@@ -136,7 +136,7 @@ export type InsertStudyLog = typeof studyLogs.$inferInsert;
 export const dailySignIns = mysqlTable("dailySignIns", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
-  signedInDate: date("signedInDate").notNull(),
+  signedInDate: varchar("signedInDate", { length: 10 }).notNull(),
   xpEarned: int("xpEarned").default(10).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
@@ -301,6 +301,7 @@ export const aiCourses = mysqlTable("aiCourses", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   title: varchar("title", { length: 255 }).notNull(),
+  topic: varchar("topic", { length: 255 }),
   description: text("description"),
   proficiencyLevel: mysqlEnum("proficiencyLevel", [
     "junior_high",
@@ -316,7 +317,6 @@ export const aiCourses = mysqlTable("aiCourses", {
   notes: text("notes"),
   isCompleted: boolean("isCompleted").default(false).notNull(),
   generatedAt: timestamp("generatedAt").defaultNow().notNull(),
-  completedAt: timestamp("completedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
