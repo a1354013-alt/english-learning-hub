@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>首頁｜每日英語學習（Vue + Bootstrap 5）</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body { scroll-behavior:smooth; }
+    .pron { color:#6c757d; }
+    .badge-level { font-size:.8rem; }
+    .sticky-topbar { position:sticky; top:0; z-index:1020; }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-topbar">
+  <div class="container">
+    <a class="navbar-brand" href="index.html">English Notes</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div id="navMain" class="collapse navbar-collapse">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link" href="vocab.html">單字</a></li>
+        <li class="nav-item"><a class="nav-link" href="dialogue.html">對話</a></li>
+        <li class="nav-item"><a class="nav-link" href="reading.html">閱讀</a></li>
+      </ul>
+      <a class="btn btn-outline-light btn-sm" href="#" onclick="window.print();return false;"><i class="bi bi-printer me-1"></i>列印</a>
+    </div>
+  </div>
+</nav>
+
+<main id="app" class="container py-4">
+  <div class="alert alert-info d-flex align-items-center" role="alert">
+    <i class="bi bi-snow2 fs-3 me-2"></i>
+    <div>
+      這是您的每日英語學習筆記（Vue 版本）。從上方選單切換「單字 / 對話 / 閱讀」，或以下選擇日期快速查看。
+    </div>
+  </div>
+
+  <div class="row g-3 align-items-end">
+    <div class="col-sm-6 col-lg-4">
+      <label class="form-label">選擇日期</label>
+      <select v-model="selectedDate" class="form-select">
+        <option v-for="d in dates" :key="d" :value="d">{{ d }}</option>
+      </select>
+    </div>
+    <div class="col-sm-auto">
+      <a class="btn btn-primary" :href="'vocab.html?date='+selectedDate"><i class="bi bi-journal-text me-1"></i>看單字</a>
+      <a class="btn btn-outline-primary ms-2" :href="'dialogue.html?date='+selectedDate"><i class="bi bi-chat-dots me-1"></i>看對話</a>
+      <a class="btn btn-outline-primary ms-2" :href="'reading.html?date='+selectedDate"><i class="bi bi-book me-1"></i>看閱讀</a>
+    </div>
+  </div>
+
+  <hr class="my-4"/>
+
+  <div v-if="session">
+    <h5 class="mb-3"><span class="badge bg-primary me-2">{{ session.date }}</span> 摘要</h5>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-title">🆕 今日新單字（{{ session.newWords.length }}）</h6>
+            <ul class="list-group list-group-flush">
+              <li v-for="w in session.newWords" :key="w.word" class="list-group-item d-flex justify-content-between">
+                <span><strong>{{ w.word }}</strong> — {{ w.zh }}</span><span class="pron">{{ w.pron }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-title">🔁 雪球複習</h6>
+            <p class="mb-0"><span v-for="(r,i) in session.review" :key="r" class="badge bg-secondary me-2">{{ r }}</span></p>
+            <hr>
+            <h6 class="card-subtitle mb-2"><i class="bi bi-play-btn-fill me-1"></i>今日影片</h6>
+            <p class="mb-0"><strong>{{ session.video.title }}</strong>（{{ session.video.platform }}，{{ session.video.subtitles }}）</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const { createApp, computed } = Vue;
+createApp({
+  setup(){
+    const params = new URLSearchParams(location.search);
+    const latest = window.SESSIONS.at(-1)?.date;
+    let selectedDate = Vue.ref(params.get('date') || latest);
+    const dates = Vue.computed(()=> window.SESSIONS.map(s => s.date));
+    const session = Vue.computed(()=> window.SESSIONS.find(s => s.date === selectedDate.value));
+    return { selectedDate, dates, session };
+  }
+}).mount('#app');
+</script>
+
+<footer class="border-top py-4 mt-5">
+  <div class="container small text-muted d-flex justify-content-between">
+    <div>© 2025 英語學習筆記 (Vue + Bootstrap 5)</div>
+    <div><a href="index.html">回首頁</a></div>
+  </div>
+</footer>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="assets/data.js"></script>
+</body>
+</html>
