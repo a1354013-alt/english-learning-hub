@@ -37,7 +37,6 @@ function validateEnvironment(): void {
       VITE_APP_ID: process.env.VITE_APP_ID,
       OAUTH_SERVER_URL: process.env.OAUTH_SERVER_URL,
       VITE_OAUTH_PORTAL_URL: process.env.VITE_OAUTH_PORTAL_URL,
-      APP_ORIGIN: process.env.APP_ORIGIN,
     };
 
     Object.entries(productionEnvs).forEach(([key, value]) => {
@@ -45,6 +44,11 @@ function validateEnvironment(): void {
         errors.push(`${key} is required in production/development mode`);
       }
     });
+
+    // APP_ORIGIN is required in production, but optional in development
+    if (process.env.NODE_ENV === "production" && !process.env.APP_ORIGIN) {
+      errors.push("APP_ORIGIN is required in production mode");
+    }
   }
 
   // Validate required environment variables

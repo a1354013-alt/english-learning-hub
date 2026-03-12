@@ -1,8 +1,12 @@
 import "dotenv/config";
+import "./types";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import { randomUUID } from "crypto";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
@@ -32,9 +36,40 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
-  // Configure body parser with larger size limit for file uploads
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  // Request ID middleware
+  app.use((req, res, next) => {
+    req.requestId = randomUUID();
+    res.locals.requestId = req.requestId;
+    next();
+  });
+
+  // Security middleware
+  app.use(helmet());
+
+  // Rate limiting
+  const oauthLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 60,
+    message: "Too many OAuth requests, please try again later",
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  const trpcLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 300,
+    message: "Too many API requests, please try again later",
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  // Apply rate limiters
+  app.use("/api/oauth", oauthLimiter);
+  app.use("/api/trpc", trpcLimiter);
+
+  // Configure body parser with reasonable size limit
+  app.use(express.json({ limit: "2mb" }));
+  app.use(express.urlencoded({ limit: "2mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
   // tRPC API

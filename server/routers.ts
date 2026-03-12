@@ -119,39 +119,46 @@ export const appRouter = router({
         }
 
         try {
-          // Get or create default deck
+          // Get or create default deck with race condition handling
           let deckId: number | undefined;
+          
           const userDecks = await db
             .select()
             .from(decks)
-            .where(eq(decks.userId, ctx.user.id))
+            .where(and(eq(decks.userId, ctx.user.id), eq(decks.title, "Default")))
             .limit(1);
           
-          if (userDecks.length === 0) {
-            await db.insert(decks).values({
-              userId: ctx.user.id,
-              title: "Default",
-              description: "Default deck for flashcards",
-              cardCount: 0,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            });
-            const newDecks = await db.select().from(decks).where(eq(decks.userId, ctx.user.id)).limit(1);
-            if (newDecks.length === 0) {
-              throw new TRPCError({
-                code: "INTERNAL_SERVER_ERROR",
-                message: "Failed to create default deck",
-              });
-            }
-            deckId = newDecks[0].id;
-          } else {
+          if (userDecks.length > 0) {
             deckId = userDecks[0].id;
+          } else {
+            try {
+              const insertResult = await db.insert(decks).values({
+                userId: ctx.user.id,
+                title: "Default",
+                description: "Default deck for flashcards",
+                cardCount: 0,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              deckId = insertResult.insertId as number;
+            } catch (insertError) {
+              const retryDecks = await db
+                .select()
+                .from(decks)
+                .where(and(eq(decks.userId, ctx.user.id), eq(decks.title, "Default")))
+                .limit(1);
+              if (retryDecks.length > 0) {
+                deckId = retryDecks[0].id;
+              } else {
+                throw insertError;
+              }
+            }
           }
           
           if (!deckId) {
             throw new TRPCError({
               code: "INTERNAL_SERVER_ERROR",
-              message: "Failed to get or create deck",
+              message: "Failed to get or create default deck",
             });
           }
           
@@ -176,6 +183,8 @@ export const appRouter = router({
             data: result,
           };
         } catch (error) {
+          const requestId = ctx.req.requestId || "unknown";
+          console.error(`[${requestId}] Error adding card:`, error instanceof Error ? error.stack : error);
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
             message: "Failed to add card",
