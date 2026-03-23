@@ -16,11 +16,11 @@ import {
   getDb,
 } from "./db";
 import { TRPCError } from "@trpc/server";
-import { sql } from "drizzle-orm";
 import { generateDailyContent, archiveOldContent } from "./contentGeneration";
-import { generateEnglishCourse } from "./ollama";
+import { getSRSStats } from "./db";
+import { generateEnglishCourse, generateWritingFeedback } from "./ollama";
 import { saveAiCourse, getAiCourses, deleteAiCourse, markCourseCompleted, rateCourse, addCourseNotes } from "./db";
-import { eq, and, desc, lt } from "drizzle-orm";
+import { eq, and, desc, lt, sql } from "drizzle-orm";
 import {
   users,
   cards,
@@ -35,6 +35,7 @@ import {
   contentArchive,
   learningPaths,
   aiCourses,
+  WritingError,
 } from "../drizzle/schema";
 
 export const appRouter = router({
@@ -203,21 +204,8 @@ export const appRouter = router({
      * Get card statistics for user
      */
     getStats: protectedProcedure.query(async ({ ctx }) => {
-      const db = await getDb();
-      if (!db) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Database not available",
-        });
-      }
-
-      // This is a placeholder - implement actual stats calculation
-      return {
-        totalCards: 0,
-        dueCards: 0,
-        reviewedToday: 0,
-        averageEasiness: 2.5,
-      };
+      const stats = await getSRSStats(ctx.user.id);
+      return stats;
     }),
   }),
 
@@ -445,19 +433,62 @@ export const appRouter = router({
         try {
           const db = await getDb();
           if (!db) throw new Error("Database not available");
+          
+          // Security: Verify course belongs to current user
           const course = await db.select().from(aiCourses).where(eq(aiCourses.id, input.courseId)).limit(1);
           if (course.length === 0) throw new Error("Course not found");
           const courseData = course[0];
+          if (courseData.userId !== ctx.user.id) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "You do not have permission to import this course",
+            });
+          }
+          
           let deckId = input.deckId;
-          if (!deckId) {
+          
+          // Security: If deckId provided, verify it belongs to current user
+          if (deckId) {
+            const deckCheck = await db.select().from(decks).where(eq(decks.id, deckId)).limit(1);
+            if (deckCheck.length === 0 || deckCheck[0].userId !== ctx.user.id) {
+              throw new TRPCError({
+                code: "FORBIDDEN",
+                message: "You do not have permission to use this deck",
+              });
+            }
+          } else {
+            // Create new deck - handle unique constraint on (userId, title)
+            const baseDeckTitle = courseData.title + " - SRS Deck";
+            let deckTitle = baseDeckTitle;
+            let counter = 2;
+            
+            // Check if deck with this title already exists
+            let existingDeck = await db
+              .select()
+              .from(decks)
+              .where(and(eq(decks.userId, ctx.user.id), eq(decks.title, deckTitle)))
+              .limit(1);
+            
+            // Add suffix if needed to avoid unique constraint violation
+            while (existingDeck.length > 0) {
+              deckTitle = baseDeckTitle + ` (${counter})`;
+              existingDeck = await db
+                .select()
+                .from(decks)
+                .where(and(eq(decks.userId, ctx.user.id), eq(decks.title, deckTitle)))
+                .limit(1);
+              counter++;
+            }
+            
             const deckResult = await db.insert(decks).values({
               userId: ctx.user.id,
-              title: courseData.title + " - SRS Deck",
+              title: deckTitle,
               description: "Imported from AI course: " + courseData.title,
               proficiencyLevel: courseData.proficiencyLevel,
             });
             deckId = deckResult.insertId as number;
           }
+          
           // vocabulary is already an array from Drizzle
           const vocabulary = Array.isArray(courseData.vocabulary) ? courseData.vocabulary : [];
           const cardInserts = vocabulary.map((vocab: any) => ({
@@ -471,6 +502,7 @@ export const appRouter = router({
             interval: 1,
             nextReviewAt: new Date(),
           }));
+          
           if (cardInserts.length > 0) {
             await db.insert(cards).values(cardInserts);
             // Sync cardCount
@@ -479,8 +511,10 @@ export const appRouter = router({
               .set({ cardCount: sql`cardCount + ${cardInserts.length}` })
               .where(eq(decks.id, deckId));
           }
+          
           return { success: true, deckId, cardsImported: cardInserts.length };
         } catch (error) {
+          if (error instanceof TRPCError) throw error;
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
             message: error instanceof Error ? error.message : "Failed to import to SRS",
@@ -564,6 +598,255 @@ export const appRouter = router({
         });
       }
     }),
+  }),
+
+  // Video learning router
+  video: router({
+    list: protectedProcedure
+      .input(z.object({ level: z.enum(["junior_high", "senior_high", "college", "advanced"]).optional() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        let query = db.select().from(videos);
+        if (input.level) {
+          query = query.where(eq(videos.proficiencyLevel, input.level));
+        }
+        return query;
+      }),
+    
+    detail: protectedProcedure
+      .input(z.object({ videoId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        const result = await db
+          .select()
+          .from(videos)
+          .where(eq(videos.id, input.videoId))
+          .limit(1);
+        
+        if (result.length === 0) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Video not found" });
+        }
+        return result[0];
+      }),
+    
+    logProgress: protectedProcedure
+      .input(z.object({ videoId: z.number(), currentTime: z.number(), duration: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        // Validate duration to prevent NaN/Infinity
+        if (!input.duration || input.duration <= 0) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid video duration" });
+        }
+        
+        // Server-side deduplication: Check if we already logged this specific video at this checkpoint
+        // Group by 30-second windows to prevent duplicate XP for same checkpoint
+        const checkpointSecond = Math.floor(input.currentTime / 30) * 30;
+        const thirtySecondsAgo = new Date(Date.now() - 30000);
+        
+        // Check for recent logs of the same video at the same checkpoint
+        const recentLog = await db
+          .select()
+          .from(studyLogs)
+          .where(
+            and(
+              eq(studyLogs.userId, ctx.user.id),
+              eq(studyLogs.activityType, "video"),
+              sql`${studyLogs.createdAt} >= ${thirtySecondsAgo}`
+            )
+          )
+          .limit(1);
+        
+        // If we already logged in the last 30 seconds, skip to prevent duplication
+        if (recentLog.length > 0) {
+          return { success: true, xpEarned: 0, deduplicated: true };
+        }
+        
+        // Log video activity with safe XP calculation
+        const progressRatio = Math.min(input.currentTime / input.duration, 1); // Cap at 100%
+        const xpEarned = Math.floor(progressRatio * 10); // 10 XP max per video
+        
+        await db.insert(studyLogs).values({
+          userId: ctx.user.id,
+          cardId: null,
+          activityType: "video",
+          xpEarned: Math.max(1, xpEarned),
+          createdAt: new Date(),
+        });
+        
+        return { success: true, xpEarned: Math.max(1, xpEarned), deduplicated: false };
+      }),
+  }),
+
+  // Writing practice router
+  writing: router({
+    getTodayChallenge: protectedProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        // Get user's proficiency level
+        const userResult = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, ctx.user.id))
+          .limit(1);
+        
+        if (userResult.length === 0) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+        }
+        
+        const userLevel = userResult[0].proficiencyLevel;
+        
+        // Get a random challenge for user's level
+        const challenges = await db
+          .select()
+          .from(writingChallenges)
+          .where(eq(writingChallenges.proficiencyLevel, userLevel))
+          .limit(1);
+        
+        if (challenges.length === 0) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "No writing challenges available" });
+        }
+        
+        return challenges[0];
+      }),
+    
+    checkGrammar: protectedProcedure
+      .input(z.object({ content: z.string().min(10).max(5000) }))
+      .mutation(async ({ ctx, input }) => {
+        // Get user's proficiency level
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        const userResult = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, ctx.user.id))
+          .limit(1);
+        
+        if (userResult.length === 0) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+        }
+        
+        // Call Ollama for grammar check
+        const feedback = await generateWritingFeedback(input.content, userResult[0].proficiencyLevel);
+        return feedback;
+      }),
+    
+    submit: protectedProcedure
+      .input(z.object({ challengeId: z.number(), content: z.string().min(10).max(5000) }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        // Verify challenge exists
+        const challengeResult = await db
+          .select()
+          .from(writingChallenges)
+          .where(eq(writingChallenges.id, input.challengeId))
+          .limit(1);
+        
+        if (challengeResult.length === 0) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Challenge not found" });
+        }
+        
+        // Get user's proficiency level
+        const userResult = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, ctx.user.id))
+          .limit(1);
+        
+        if (userResult.length === 0) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+        }
+        
+        // Get grammar feedback
+        const feedback = await generateWritingFeedback(input.content, userResult[0].proficiencyLevel);
+        
+        // Use score from feedback, calculate XP
+        const score = feedback.score;
+        const xpEarned = Math.floor(score / 10); // 0-10 XP
+        
+        // Convert corrections to errors format
+        const errors = feedback.corrections.map((correction) => ({
+          position: 0,
+          original: correction.original,
+          suggestion: correction.corrected,
+          type: "grammar" as const,
+          explanation: correction.explanation,
+        }));
+        
+        // Save submission
+        const result = await db.insert(writingSubmissions).values({
+          userId: ctx.user.id,
+          challengeId: input.challengeId,
+          content: input.content,
+          feedback: feedback.feedback,
+          errors: errors,
+          score,
+          xpEarned,
+          createdAt: new Date(),
+        });
+        
+        // Log study activity
+        await db.insert(studyLogs).values({
+          userId: ctx.user.id,
+          cardId: null,
+          activityType: "writing",
+          xpEarned,
+          createdAt: new Date(),
+        });
+        
+        return {
+          success: true,
+          submissionId: result.insertId,
+          score,
+          xpEarned,
+          feedback: feedback.feedback,
+          corrections: feedback.corrections,
+          suggestions: feedback.suggestions,
+        };
+      }),
+    
+    listSubmissions: protectedProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        return db
+          .select()
+          .from(writingSubmissions)
+          .where(eq(writingSubmissions.userId, ctx.user.id))
+          .orderBy(desc(writingSubmissions.createdAt));
+      }),
+  }),
+  // Study logs router for activity tracking
+  studyLog: router({
+    listRecent: protectedProcedure
+      .input(z.object({ days: z.number().default(84).optional() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - (input.days || 84));
+        
+        return db
+          .select()
+          .from(studyLogs)
+          .where(and(
+            eq(studyLogs.userId, ctx.user.id),
+            sql`${studyLogs.createdAt} >= ${startDate}`
+          ))
+          .orderBy(desc(studyLogs.createdAt));
+      }),
   }),
 });
 

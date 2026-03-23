@@ -1,4 +1,4 @@
-import { eq, and, lte, desc, asc } from "drizzle-orm";
+import { eq, and, lte, desc, asc, sql } from "drizzle-orm";
 import mysql from "mysql2/promise";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
@@ -334,7 +334,7 @@ export async function checkDailySignIn(userId: number) {
     .select()
     .from(dailySignIns)
     .where(
-      and(eq(dailySignIns.userId, userId), eq(dailySignIns.signedInDate, todayStr))
+      and(eq(dailySignIns.userId, userId), eq(dailySignIns.signInDate, todayStr))
     )
     .limit(1);
 
@@ -379,7 +379,7 @@ export async function recordDailySignIn(userId: number) {
     .where(
       and(
         eq(dailySignIns.userId, userId),
-        eq(dailySignIns.signedInDate, yesterdayStr)
+        eq(dailySignIns.signInDate, yesterdayStr)
       )
     )
     .limit(1);
@@ -716,4 +716,73 @@ export async function addCourseNotes(userId: number, courseId: number, notes: st
     .where(and(eq(aiCourses.id, courseId), eq(aiCourses.userId, userId)));
 
   return { success: true };
+}
+
+
+/**
+ * Get SRS statistics for user
+ */
+export async function getSRSStats(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    return {
+      totalCards: 0,
+      dueCards: 0,
+      reviewedToday: 0,
+      averageEasiness: 2.5,
+    };
+  }
+
+  try {
+    // Get total cards count
+    const totalCardsResult = await db
+      .select({ count: sql`COUNT(*) as count` })
+      .from(cards)
+      .where(eq(cards.userId, userId));
+    const totalCards = totalCardsResult[0]?.count || 0;
+
+    // Get due cards count
+    const now = new Date();
+    const dueCardsResult = await db
+      .select({ count: sql`COUNT(*) as count` })
+      .from(cards)
+      .where(and(eq(cards.userId, userId), lte(cards.nextReviewAt, now)));
+    const dueCards = dueCardsResult[0]?.count || 0;
+
+    // Get reviewed today count
+    const today = toDateStr(new Date());
+    const reviewedTodayResult = await db
+      .select({ count: sql`COUNT(DISTINCT cardId) as count` })
+      .from(studyLogs)
+      .where(
+        and(
+          eq(studyLogs.userId, userId),
+          eq(studyLogs.activityType, "review"),
+          sql`DATE(${studyLogs.createdAt}) = ${today}`
+        )
+      );
+    const reviewedToday = reviewedTodayResult[0]?.count || 0;
+
+    // Get average easiness factor
+    const avgEasinessResult = await db
+      .select({ avg: sql`AVG(CAST(easinessFactor AS DECIMAL(5,2))) as avg` })
+      .from(cards)
+      .where(eq(cards.userId, userId));
+    const averageEasiness = parseFloat(avgEasinessResult[0]?.avg || "2.5");
+
+    return {
+      totalCards: Number(totalCards),
+      dueCards: Number(dueCards),
+      reviewedToday: Number(reviewedToday),
+      averageEasiness: Math.round(averageEasiness * 100) / 100,
+    };
+  } catch (error) {
+    console.error("[Database] Failed to get SRS stats:", error);
+    return {
+      totalCards: 0,
+      dueCards: 0,
+      reviewedToday: 0,
+      averageEasiness: 2.5,
+    };
+  }
 }

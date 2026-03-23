@@ -5,6 +5,38 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, ArrowLeft, Plus } from "lucide-react";
 import { useLocation } from "wouter";
+import { toast } from "sonner";
+
+interface ReadingMaterialItem {
+  phrase?: string;
+  definition?: string;
+  usage?: string;
+  sentence?: string;
+}
+
+interface GrammarItem {
+  topic: string;
+  explanation: string;
+  example: string;
+}
+
+interface Exercise {
+  type: string;
+  question: string;
+  options: string[];
+  answer: string;
+}
+
+interface GeneratedContentData {
+  id?: number;
+  generatedDate: string;
+  proficiencyLevel: "junior_high" | "senior_high" | "college" | "advanced";
+  vocabulary?: Array<{ word: string; definition: string; usage: string }>;
+  grammar?: GrammarItem[];
+  readingMaterial?: { phrase?: ReadingMaterialItem; sentence?: ReadingMaterialItem };
+  exercises?: Exercise[];
+  isArchived?: boolean;
+}
 
 interface ContentItem {
   id?: number;
@@ -19,39 +51,100 @@ export default function DailyContent() {
   const { isAuthenticated, user } = useAuth();
   const [, setLocation] = useLocation();
   const [contentItems, setContentItems] = useState<ContentItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
 
   // Fetch learning path to get proficiency level
   const { data: learningPath } = trpc.learningPath.get.useQuery(undefined, {
     enabled: isAuthenticated,
   });
 
-  // Generate content mutation
+  // Get today's content first
+  const getTodayQuery = trpc.content.getTodayContent.useQuery(
+    { proficiencyLevel: learningPath?.currentLevel || "junior_high" },
+    { enabled: isAuthenticated && !!learningPath }
+  );
+
+  // Generate content mutation (only if no content exists)
   const generateMutation = trpc.content.generateToday.useMutation({
     onSuccess: (result) => {
       if (result.success && result.data) {
-        setContentItems(result.data as ContentItem[]);
+        const transformed = transformGeneratedContent(result.data);
+        setContentItems(transformed);
       }
+    },
+    onError: () => {
+      // Error is handled by toast in the component
     },
   });
 
   // Add to cards mutation
   const addToCardsMutation = trpc.srs.addCard.useMutation({
     onSuccess: () => {
-      alert("Added to flashcards successfully!");
+      toast.success("已添加到單字卡");
+    },
+    onError: (error) => {
+      toast.error(error.message || "添加失敗");
     },
   });
 
+  // Transform backend GeneratedContent to frontend ContentItem format
+  const transformGeneratedContent = (data: GeneratedContentData | GeneratedContentData[]): ContentItem[] => {
+    const items = Array.isArray(data) ? data : [data];
+    const result: ContentItem[] = [];
+
+    items.forEach((item) => {
+      // Add vocabulary items
+      if (item.vocabulary && Array.isArray(item.vocabulary)) {
+        item.vocabulary.forEach((vocab) => {
+          result.push({
+            contentType: "vocabulary",
+            content: vocab.word,
+            definition: vocab.definition,
+            exampleUsage: vocab.usage,
+            proficiencyLevel: item.proficiencyLevel,
+          });
+        });
+      }
+
+      // Add phrase items - readingMaterial.phrase is an object with phrase, definition, usage
+      if (item.readingMaterial?.phrase) {
+        const phraseObj = item.readingMaterial.phrase;
+        result.push({
+          contentType: "phrase",
+          content: typeof phraseObj === "string" ? phraseObj : phraseObj.phrase || "",
+          definition: typeof phraseObj === "object" ? phraseObj.definition || "" : "",
+          exampleUsage: typeof phraseObj === "object" ? phraseObj.usage || "" : "",
+          proficiencyLevel: item.proficiencyLevel,
+        });
+      }
+
+      // Add sentence items - readingMaterial.sentence is an object with sentence, definition, usage
+      if (item.readingMaterial?.sentence) {
+        const sentenceObj = item.readingMaterial.sentence;
+        result.push({
+          contentType: "sentence",
+          content: typeof sentenceObj === "string" ? sentenceObj : sentenceObj.sentence || "",
+          definition: typeof sentenceObj === "object" ? sentenceObj.definition || "" : "",
+          exampleUsage: typeof sentenceObj === "object" ? sentenceObj.usage || "" : "",
+          proficiencyLevel: item.proficiencyLevel,
+        });
+      }
+    });
+
+    return result;
+  };
+
   useEffect(() => {
-    if (learningPath && isAuthenticated) {
-      // Try to generate content for today
-      setIsLoading(true);
+    if (getTodayQuery.data && getTodayQuery.data.length > 0) {
+      // Use existing content
+      const transformed = transformGeneratedContent(getTodayQuery.data);
+      setContentItems(transformed);
+    } else if (getTodayQuery.isSuccess && getTodayQuery.data?.length === 0 && learningPath && isAuthenticated) {
+      // No content for today, generate new
       generateMutation.mutate({
         proficiencyLevel: learningPath.currentLevel,
       });
-      setIsLoading(false);
     }
-  }, [learningPath, isAuthenticated]);
+  }, [getTodayQuery.data, getTodayQuery.isSuccess, learningPath, isAuthenticated]);
 
   const handleAddToCards = (item: ContentItem) => {
     if (item.contentType === "vocabulary") {
@@ -59,8 +152,10 @@ export default function DailyContent() {
         frontText: item.content,
         backText: item.definition,
         exampleSentence: item.exampleUsage,
-        proficiencyLevel: item.proficiencyLevel as any,
+        proficiencyLevel: item.proficiencyLevel as "junior_high" | "senior_high" | "college" | "advanced",
       });
+    } else {
+      toast.error("Only vocabulary items can be added to flashcards.");
     }
   };
 
@@ -101,7 +196,7 @@ export default function DailyContent() {
           </p>
         </div>
 
-        {isLoading ? (
+        {getTodayQuery.isLoading || generateMutation.isPending ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
           </div>

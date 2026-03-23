@@ -12,9 +12,10 @@ import { useAuth } from "@/_core/hooks/useAuth";
 export default function Home() {
   const { user, loading, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
-  const [mockHeatmapData, setMockHeatmapData] = useState<
+  const [heatmapData, setHeatmapData] = useState<
     Array<{ date: string; count: number }>
   >([]);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   // Fetch gamification stats
   const { data: gamStats } = trpc.gamification.getStats.useQuery(undefined, {
@@ -26,19 +27,44 @@ export default function Home() {
     enabled: isAuthenticated,
   });
 
-  // Generate mock heatmap data
+  // Fetch study logs for heatmap (past 84 days)
+  const { data: studyLogs } = trpc.studyLog.listRecent.useQuery(
+    { days: 84 },
+    { enabled: isAuthenticated }
+  );
+
+  // Generate heatmap data from real study logs
   useEffect(() => {
-    const mockData = [];
+    if (!studyLogs) return;
+    
+    // Create a map of dates to activity counts
+    const dateActivityMap = new Map<string, number>();
+    
+    // Initialize all dates in the past 84 days with 0
     for (let i = 0; i < 84; i++) {
       const date = new Date();
       date.setDate(date.getDate() - i);
-      mockData.push({
-        date: date.toISOString().split("T")[0],
-        count: Math.floor(Math.random() * 12),
+      const dateStr = date.toISOString().split("T")[0];
+      dateActivityMap.set(dateStr, 0);
+    }
+    
+    // Count activities per date from study logs
+    if (Array.isArray(studyLogs)) {
+      studyLogs.forEach((log) => {
+        const logDate = new Date(log.createdAt).toISOString().split("T")[0];
+        if (dateActivityMap.has(logDate)) {
+          dateActivityMap.set(logDate, (dateActivityMap.get(logDate) || 0) + 1);
+        }
       });
     }
-    setMockHeatmapData(mockData);
-  }, []);
+    
+    // Convert to array format
+    const heatmapData = Array.from(dateActivityMap.entries())
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    setHeatmapData(heatmapData);
+  }, [studyLogs]);
 
   if (loading) {
     return (
@@ -213,9 +239,25 @@ export default function Home() {
             <span className="text-sm text-muted-foreground">
               歡迎，{user?.name}
             </span>
-            <Button variant="outline" size="sm">
-              個人資料
-            </Button>
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+              >
+                個人資料
+              </Button>
+              {isProfileMenuOpen && (
+                <div className="absolute top-10 right-0 bg-background border border-border rounded-lg shadow-lg p-2 z-50 min-w-48">
+                  <button className="w-full text-left px-3 py-2 hover:bg-muted rounded text-sm">
+                    查看個人資料
+                  </button>
+                  <button className="w-full text-left px-3 py-2 hover:bg-muted rounded text-sm">
+                    設定
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </nav>
@@ -295,7 +337,7 @@ export default function Home() {
             <CardTitle>學習活動</CardTitle>
           </CardHeader>
           <CardContent>
-            <ActivityHeatmap data={mockHeatmapData} />
+            <ActivityHeatmap data={heatmapData} />
           </CardContent>
         </Card>
 

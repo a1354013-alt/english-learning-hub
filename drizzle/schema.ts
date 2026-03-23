@@ -10,6 +10,7 @@ import {
   json,
   date,
   index,
+  uniqueIndex,
 } from "drizzle-orm/mysql-core";
 
 /**
@@ -64,7 +65,7 @@ export const decks = mysqlTable(
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
   (table) => ({
-    userIdTitleIdx: index("decks_userId_title_idx").on(table.userId, table.title),
+    userIdTitleIdx: uniqueIndex("decks_userId_title_idx").on(table.userId, table.title),
   })
 );
 
@@ -120,11 +121,11 @@ export type InsertCard = typeof cards.$inferInsert;
 export const studyLogs = mysqlTable("studyLogs", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
-  cardId: int("cardId").notNull(),
+  cardId: int("cardId"), // can be null for non-review activities
   activityType: mysqlEnum("activityType", ["review", "video", "writing", "quiz"]).notNull(),
   quality: int("quality"), // 0-5 quality score (optional, only for review activity)
   xpEarned: int("xpEarned").default(0).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull()
 });
 
 export type StudyLog = typeof studyLogs.$inferSelect;
@@ -136,13 +137,16 @@ export type InsertStudyLog = typeof studyLogs.$inferInsert;
 export const dailySignIns = mysqlTable("dailySignIns", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
-  signedInDate: varchar("signedInDate", { length: 10 }).notNull(),
+  signInDate: varchar("signInDate", { length: 10 }).notNull(), // Unified field name
   xpEarned: int("xpEarned").default(10).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export type DailySignIn = typeof dailySignIns.$inferSelect;
 export type InsertDailySignIn = typeof dailySignIns.$inferInsert;
+
+// Re-export with both field names for backward compatibility
+export type DailySignInWithSignedInDate = DailySignIn & { signedInDate: string };
 
 /**
  * Dictionary cache for vocabulary lookups
@@ -176,24 +180,33 @@ export const videos = mysqlTable("videos", {
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
   url: varchar("url", { length: 512 }).notNull(),
+  youtubeId: varchar("youtubeId", { length: 255 }), // YouTube video ID if applicable
+  durationSeconds: int("durationSeconds"), // Duration in seconds
   proficiencyLevel: mysqlEnum("proficiencyLevel", [
     "junior_high",
     "senior_high",
     "college",
     "advanced",
   ]).notNull(),
-  duration: int("duration"), // in seconds
+  transcript: json("transcript"), // Array of subtitle objects: [{time: number, text: string}]
   createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
 export type Video = typeof videos.$inferSelect;
 export type InsertVideo = typeof videos.$inferInsert;
+
+export type VideoTranscript = Array<{
+  time: number; // Start time in seconds
+  text: string; // Subtitle text
+}>;
 
 /**
  * Writing challenges
  */
 export const writingChallenges = mysqlTable("writingChallenges", {
   id: int("id").autoincrement().primaryKey(),
+  topic: varchar("topic", { length: 255 }).notNull(),
   title: varchar("title", { length: 255 }).notNull(),
   prompt: text("prompt").notNull(),
   proficiencyLevel: mysqlEnum("proficiencyLevel", [
@@ -203,6 +216,7 @@ export const writingChallenges = mysqlTable("writingChallenges", {
     "advanced",
   ]).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
 export type WritingChallenge = typeof writingChallenges.$inferSelect;
@@ -217,12 +231,23 @@ export const writingSubmissions = mysqlTable("writingSubmissions", {
   challengeId: int("challengeId").notNull(),
   content: text("content").notNull(),
   feedback: text("feedback"),
+  errors: json("errors"), // Array of grammar/spelling errors
   score: int("score"),
+  xpEarned: int("xpEarned").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
 export type WritingSubmission = typeof writingSubmissions.$inferSelect;
 export type InsertWritingSubmission = typeof writingSubmissions.$inferInsert;
+
+export type WritingError = {
+  position: number;
+  original: string;
+  suggestion: string;
+  type: "grammar" | "spelling" | "punctuation";
+  explanation: string;
+};
 
 /**
  * Generated content (daily lessons) - site-wide shared content per proficiency level

@@ -1,0 +1,8 @@
+{
+  "query": "ALTER TABLE `decks` DROP INDEX `decks_userId_title_idx`, ADD UNIQUE INDEX `decks_userId_title_idx` (`userId`, `title`);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user s9kQj4Yzo8scc8v.root --database X3dQarJKtTXtUZnrGkJrnA --execute ALTER TABLE `decks` DROP INDEX `decks_userId_title_idx`, ADD UNIQUE INDEX `decks_userId_title_idx` (`userId`, `title`);",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1091 (42000) at line 1: index decks_userId_title_idx doesn't exist"
+  ]
+}

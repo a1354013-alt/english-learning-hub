@@ -19,6 +19,7 @@ interface VocabularyItem {
   word: string;
   definition: string;
   chineseTranslation: string;
+  pronunciation?: string;
   example?: string;
   usage?: string;
 }
@@ -40,6 +41,7 @@ interface Exercise {
   question: string;
   options: string[];
   correctAnswer: number;
+  answer?: string;
   explanation?: string;
 }
 
@@ -79,7 +81,7 @@ export default function MyCourses() {
       toast.success("課程已刪除");
       // Update local state using the mutation parameter (courseId)
       if (coursesList) {
-        setCourses(coursesList.filter((c: any) => c.id !== variables.courseId));
+        setCourses(coursesList.filter((c: AiCourse) => c.id !== variables.courseId));
       }
       setSelectedCourse(null);
     },
@@ -113,9 +115,10 @@ export default function MyCourses() {
 
 
   // Import to SRS mutation
-  const importSRSMutation = trpc.srs.addCard.useMutation({
-    onSuccess: () => {
-      toast.success("已導入到 SRS");
+  const importSRSMutation = trpc.aiCourse.importToSRS.useMutation({
+    onSuccess: (result) => {
+      toast.success(`已導入 ${result.cardsImported} 個詞彙到 SRS`);
+      setShowDetails(false);
     },
     onError: (error) => {
       toast.error(error.message || "導入失敗");
@@ -210,7 +213,7 @@ export default function MyCourses() {
                   <div className="space-y-3">
                     <h3 className="font-bold text-lg">詞彙</h3>
                     <div className="grid md:grid-cols-2 gap-3">
-                      {selectedCourse.vocabulary.map((vocab: any, idx: number) => (
+                      {selectedCourse.vocabulary?.map((vocab: VocabularyItem, idx: number) => (
                         <div key={idx} className="border border-border rounded-lg p-3">
                           <p className="font-bold">{vocab.word}</p>
                           <p className="text-sm text-muted-foreground italic">
@@ -250,7 +253,7 @@ export default function MyCourses() {
                 {selectedCourse.exercises && selectedCourse.exercises.length > 0 && (
                   <div className="space-y-3">
                     <h3 className="font-bold text-lg">練習題</h3>
-                    {selectedCourse.exercises.map((exercise: any, idx: number) => (
+                    {selectedCourse.exercises?.map((exercise: Exercise, idx: number) => (
                       <div key={idx} className="border border-border rounded-lg p-3">
                         <p className="font-medium">{exercise.question}</p>
                         {exercise.options && (
@@ -259,7 +262,7 @@ export default function MyCourses() {
                               <p
                                 key={optIdx}
                                 className={`text-sm ${
-                                  option.startsWith(exercise.answer)
+                                  exercise.answer && option.startsWith(exercise.answer)
                                     ? "text-green-600 font-medium"
                                     : ""
                                 }`}
@@ -321,36 +324,20 @@ export default function MyCourses() {
                   )}
                   <Button
                     variant="outline"
-                    onClick={async () => {
+                    onClick={() => {
                       if (!selectedCourse?.vocabulary || selectedCourse.vocabulary.length === 0) {
                         toast.error("此課程沒有詞彙可導入");
                         return;
                       }
                       
-                      try {
-                        let importedCount = 0;
-                        for (const vocabItem of selectedCourse.vocabulary) {
-                          try {
-                            await importSRSMutation.mutateAsync({
-                              frontText: vocabItem.word,
-                              backText: vocabItem.definition,
-                              exampleSentence: vocabItem.example,
-                              proficiencyLevel: selectedCourse.proficiencyLevel,
-                            });
-                            importedCount++;
-                          } catch (err) {
-                            console.error("Failed to import item:", err);
-                          }
-                        }
-                        toast.success(`已導入 ${importedCount} 個詞彙到 SRS`);
-                      } catch (error) {
-                        toast.error("導入過程中發生錯誤");
-                      }
+                      importSRSMutation.mutate({
+                        courseId: selectedCourse.id,
+                      });
                     }}
                     disabled={importSRSMutation.isPending}
                   >
                     <Download className="w-4 h-4 mr-2" />
-                    導入 SRS
+                    {importSRSMutation.isPending ? "導入中..." : "導入 SRS"}
                   </Button>
                   <Button
                     variant="outline"

@@ -11,29 +11,53 @@ import VideoLearning from "./pages/VideoLearning";
 import DailyContent from "./pages/DailyContent";
 import AICourseGenerator from "./pages/AICourseGenerator";
 import MyCourses from "./pages/MyCourses";
+import { useAuth } from "./_core/hooks/useAuth";
+import { useLocation } from "wouter";
+import { useEffect } from "react";
+import { getLoginUrl } from "./const";
+
+// Protected route wrapper that redirects to OAuth if not authenticated
+function ProtectedRoute({ component: Component }: { component: React.ComponentType<any> }) {
+  const { isAuthenticated, loading } = useAuth();
+  
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      // Redirect directly to OAuth login
+      window.location.href = getLoginUrl();
+    }
+  }, [isAuthenticated, loading]);
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    return null;
+  }
+  
+  return <Component />;
+}
 
 function Router() {
-  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path={"/"} component={Home} />
-      <Route path={"/srs"} component={SRSReview} />
-      <Route path={"/writing"} component={WritingPractice} />
-      <Route path={"/videos"} component={VideoLearning} />
-      <Route path={"/daily-content"} component={DailyContent} />
-      <Route path={"/ai-course"} component={AICourseGenerator} />
-      <Route path={"/my-courses"} component={MyCourses} />
+      <Route path={"/srs"} component={() => <ProtectedRoute component={SRSReview} />} />
+      <Route path={"/writing"} component={() => <ProtectedRoute component={WritingPractice} />} />
+      <Route path={"/videos"} component={() => <ProtectedRoute component={VideoLearning} />} />
+      <Route path={"/daily-content"} component={() => <ProtectedRoute component={DailyContent} />} />
+      <Route path={"/ai-course"} component={() => <ProtectedRoute component={AICourseGenerator} />} />
+      <Route path={"/my-courses"} component={() => <ProtectedRoute component={MyCourses} />} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
     </Switch>
   );
 }
-
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
 
 function App() {
   return (

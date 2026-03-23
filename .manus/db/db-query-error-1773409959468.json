@@ -1,0 +1,8 @@
+{
+  "query": "\n-- Update writingSubmissions table\nALTER TABLE writingSubmissions ADD COLUMN errors JSON AFTER feedback;\nALTER TABLE writingSubmissions ADD COLUMN xpEarned INT DEFAULT 0 NOT NULL AFTER score;\nALTER TABLE writingSubmissions ADD COLUMN updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER createdAt;\n\n-- Update studyLogs table to allow nullable cardId\nALTER TABLE studyLogs MODIFY cardId INT;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user s9kQj4Yzo8scc8v.root --database X3dQarJKtTXtUZnrGkJrnA --execute \n-- Update writingSubmissions table\nALTER TABLE writingSubmissions ADD COLUMN errors JSON AFTER feedback;\nALTER TABLE writingSubmissions ADD COLUMN xpEarned INT DEFAULT 0 NOT NULL AFTER score;\nALTER TABLE writingSubmissions ADD COLUMN updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER createdAt;\n\n-- Update studyLogs table to allow nullable cardId\nALTER TABLE studyLogs MODIFY cardId INT;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1060 (42S21) at line 3: Duplicate column name 'errors'"
+  ]
+}
