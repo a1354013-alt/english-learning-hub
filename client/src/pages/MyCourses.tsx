@@ -15,19 +15,49 @@ import {
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
+interface VocabularyItem {
+  word: string;
+  definition: string;
+  chineseTranslation: string;
+  example?: string;
+  usage?: string;
+}
+
+interface GrammarContent {
+  title?: string;
+  topic?: string;
+  explanation: string;
+  examples?: string[];
+}
+
+interface ReadingMaterial {
+  title: string;
+  content: string;
+  difficulty: string;
+}
+
+interface Exercise {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation?: string;
+}
+
+type ProficiencyLevel = "junior_high" | "senior_high" | "college" | "advanced";
+
 interface AiCourse {
   id: number;
+  userId: number;
   title: string;
   topic?: string;
-  proficiencyLevel: string;
+  proficiencyLevel: ProficiencyLevel;
   generatedAt: string;
   isCompleted: boolean;
   rating?: number;
-  notes?: string;
-  vocabulary?: any[];
-  grammar?: any;
-  readingMaterial?: any;
-  exercises?: any[];
+  vocabulary?: VocabularyItem[];
+  grammar?: GrammarContent;
+  readingMaterial?: ReadingMaterial;
+  exercises?: Exercise[];
 }
 
 export default function MyCourses() {
@@ -45,11 +75,11 @@ export default function MyCourses() {
 
   // Delete course mutation
   const deleteMutation = trpc.aiCourse.delete.useMutation({
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       toast.success("課程已刪除");
-      // Refresh the list
+      // Update local state using the mutation parameter (courseId)
       if (coursesList) {
-        setCourses(coursesList.filter((c: any) => c.id !== selectedCourse?.id));
+        setCourses(coursesList.filter((c: any) => c.id !== variables.courseId));
       }
       setSelectedCourse(null);
     },
@@ -81,15 +111,6 @@ export default function MyCourses() {
     },
   });
 
-  // Add notes mutation
-  const notesMutation = trpc.aiCourse.addNotes.useMutation({
-    onSuccess: () => {
-      toast.success("筆記已保存");
-    },
-    onError: (error) => {
-      toast.error(error.message || "保存失敗");
-    },
-  });
 
   // Import to SRS mutation
   const importSRSMutation = trpc.srs.addCard.useMutation({
@@ -311,10 +332,10 @@ export default function MyCourses() {
                         for (const vocabItem of selectedCourse.vocabulary) {
                           try {
                             await importSRSMutation.mutateAsync({
-                              frontText: vocabItem.word || vocabItem,
-                              backText: vocabItem.definition || "",
-                              exampleSentence: vocabItem.usage || undefined,
-                              proficiencyLevel: selectedCourse.proficiencyLevel as any,
+                              frontText: vocabItem.word,
+                              backText: vocabItem.definition,
+                              exampleSentence: vocabItem.example,
+                              proficiencyLevel: selectedCourse.proficiencyLevel,
                             });
                             importedCount++;
                           } catch (err) {

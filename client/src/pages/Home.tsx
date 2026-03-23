@@ -276,12 +276,12 @@ export default function Home() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>完成進度</span>
-                  <span>{(learningPath as any).completionPercentage ?? 0}%</span>
+                  <span>{learningPath.completionPercentage ?? 0}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className="bg-accent h-2 rounded-full transition-all"
-                    style={{ width: `${(learningPath as any).completionPercentage ?? 0}%` }}
+                    style={{ width: `${learningPath.completionPercentage ?? 0}%` }}
                   />
                 </div>
               </div>

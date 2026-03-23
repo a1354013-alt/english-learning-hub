@@ -16,6 +16,7 @@ import {
   getDb,
 } from "./db";
 import { TRPCError } from "@trpc/server";
+import { sql } from "drizzle-orm";
 import { generateDailyContent, archiveOldContent } from "./contentGeneration";
 import { generateEnglishCourse } from "./ollama";
 import { saveAiCourse, getAiCourses, deleteAiCourse, markCourseCompleted, rateCourse, addCourseNotes } from "./db";
@@ -163,7 +164,7 @@ export const appRouter = router({
             });
           }
           
-          const result = await db.insert(cards).values({
+          const cardResult = await db.insert(cards).values({
             deckId,
             userId: ctx.user.id,
             frontText: input.frontText,
@@ -179,9 +180,14 @@ export const appRouter = router({
             createdAt: new Date(),
             updatedAt: new Date(),
           });
+          // Sync cardCount
+          await db
+            .update(decks)
+            .set({ cardCount: sql`cardCount + 1` })
+            .where(eq(decks.id, deckId));
           return {
             success: true,
-            data: result,
+            data: { deckId, cardId: cardResult.insertId },
           };
         } catch (error) {
           const requestId = ctx.req.requestId || "unknown";
@@ -467,6 +473,11 @@ export const appRouter = router({
           }));
           if (cardInserts.length > 0) {
             await db.insert(cards).values(cardInserts);
+            // Sync cardCount
+            await db
+              .update(decks)
+              .set({ cardCount: sql`cardCount + ${cardInserts.length}` })
+              .where(eq(decks.id, deckId));
           }
           return { success: true, deckId, cardsImported: cardInserts.length };
         } catch (error) {

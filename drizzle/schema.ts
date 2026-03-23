@@ -150,11 +150,19 @@ export type InsertDailySignIn = typeof dailySignIns.$inferInsert;
 export const dictionaryCache = mysqlTable("dictionaryCache", {
   id: int("id").autoincrement().primaryKey(),
   word: varchar("word", { length: 255 }).notNull().unique(),
-  definition: text("definition").notNull(),
-  exampleSentence: text("exampleSentence"),
-  chineseTranslation: text("chineseTranslation"),
+  phonetic: varchar("phonetic", { length: 255 }),
   audioUrl: varchar("audioUrl", { length: 512 }),
+  definitions: json("definitions").notNull(),
+  exampleSentences: json("exampleSentences"),
+  proficiencyLevel: mysqlEnum("proficiencyLevel", [
+    "junior_high",
+    "senior_high",
+    "college",
+    "advanced",
+  ]).notNull(),
+  frequency: int("frequency").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
 export type DictionaryEntry = typeof dictionaryCache.$inferSelect;
@@ -234,6 +242,7 @@ export const generatedContent = mysqlTable("generatedContent", {
   exercises: json("exercises"),
   isArchived: boolean("isArchived").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
 export type GeneratedContent = typeof generatedContent.$inferSelect;
@@ -285,8 +294,8 @@ export const learningPaths = mysqlTable("learningPaths", {
   ])
     .default("advanced")
     .notNull(),
-  completedLessons: int("completedLessons").default(0).notNull(),
-  totalXp: int("totalXp").default(0).notNull(),
+  completionPercentage: int("completionPercentage").default(0).notNull(),
+  estimatedDaysToTarget: int("estimatedDaysToTarget"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
