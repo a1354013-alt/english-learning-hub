@@ -9,7 +9,7 @@ import {
   Eye,
   Star,
   ArrowLeft,
-  Edit2,
+
   Download,
 } from "lucide-react";
 import { useLocation } from "wouter";
@@ -38,9 +38,10 @@ interface ReadingMaterial {
 }
 
 interface Exercise {
+  type?: string;
   question: string;
   options: string[];
-  correctAnswer: number;
+  correctAnswer?: number;
   answer?: string;
   explanation?: string;
 }
@@ -68,6 +69,7 @@ export default function MyCourses() {
   const [courses, setCourses] = useState<AiCourse[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<AiCourse | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const utils = trpc.useUtils();
 
   // Fetch courses
   const { data: coursesList, isLoading } = trpc.aiCourse.list.useQuery(
@@ -77,12 +79,9 @@ export default function MyCourses() {
 
   // Delete course mutation
   const deleteMutation = trpc.aiCourse.delete.useMutation({
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       toast.success("課程已刪除");
-      // Update local state using the mutation parameter (courseId)
-      if (coursesList) {
-        setCourses(coursesList.filter((c: AiCourse) => c.id !== variables.courseId));
-      }
+      utils.aiCourse.list.invalidate();
       setSelectedCourse(null);
     },
     onError: (error) => {
@@ -94,9 +93,7 @@ export default function MyCourses() {
   const completeMutation = trpc.aiCourse.markCompleted.useMutation({
     onSuccess: () => {
       toast.success("課程已標記為完成");
-      if (selectedCourse) {
-        setSelectedCourse({ ...selectedCourse, isCompleted: true });
-      }
+      utils.aiCourse.list.invalidate();
     },
     onError: (error) => {
       toast.error(error.message || "標記失敗");
@@ -107,6 +104,7 @@ export default function MyCourses() {
   const rateMutation = trpc.aiCourse.rate.useMutation({
     onSuccess: () => {
       toast.success("評分已保存");
+      utils.aiCourse.list.invalidate();
     },
     onError: (error) => {
       toast.error(error.message || "評分失敗");
@@ -118,6 +116,7 @@ export default function MyCourses() {
   const importSRSMutation = trpc.aiCourse.importToSRS.useMutation({
     onSuccess: (result) => {
       toast.success(`已導入 ${result.cardsImported} 個詞彙到 SRS`);
+      utils.aiCourse.list.invalidate();
       setShowDetails(false);
     },
     onError: (error) => {
@@ -444,16 +443,7 @@ export default function MyCourses() {
                           <Eye className="w-4 h-4 mr-1" />
                           查看
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedCourse(course);
-                            setShowDetails(true);
-                          }}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
+
                       </div>
                     </CardContent>
                   </Card>

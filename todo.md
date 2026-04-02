@@ -88,3 +88,29 @@
 - [x] 集成定時任務系統
 - [x] 實現自動內容生成與歸檔
 - [x] 集成 Ollama 本地 AI 按需課程生成
+
+
+---
+
+# Production 級收尾優化任務清單（Phase 1-15）
+
+## Phase 1-5: 基礎設施與資料流程
+- [x] 1. 清理專案交付內容 - 更新 .gitignore 與移除工作環境資料
+- [x] 2. 修正 client/index.html analytics 載入方式 - 動態注入 script
+- [x] 3. 重構 DailyContent.tsx 資料流程 - 抽離純函式與嚴格型別
+- [x] 4. 調整 DailyContent 自動生成邏輯 - 三態控制與手動觸發
+- [x] 5. 修正 MyCourses.tsx 資料同步策略 - 使用 invalidateQueries
+
+## Phase 6-10: UI 與路由優化
+- [x] 6. 修正 MyCourses 中 Edit 按鈕語意 - 改為 Eye 圖示與 openDetails
+- [x] 7. 重構 VideoLearning.tsx 穩定性 - 移除未使用狀態與改進型別
+- [x] 8. 修正 VideoLearning 進度去重策略 - 新增 videoProgress 表
+- [x] 9. 補齊 WritingPractice 歷史功能 - 新增 SubmissionHistory 頁面
+- [x] 10. 優化 ProtectedRoute 寫法 - 改為 children 型式與使用 navigate
+
+## Phase 11-15: 後端強化與測試
+- [x] 11. 整理 DashboardLayout - 移除或統一與主要 route
+- [x] 12. 後端型別強化 - 建立 InsertResult 型別與移除 any 轉型
+- [x] 13. 優化 contentGeneration.ts 維護性 - 擴充模板內容
+- [x] 14. 補齊首頁入口 - 新增快速訪問與移除 any 轉型
+- [x] 15. 新增前端關鍵單元測試 - transformGeneratedContent 與 safeParse

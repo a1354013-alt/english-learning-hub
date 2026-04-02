@@ -1,5 +1,6 @@
 import { eq, and, lte, desc, asc, sql } from "drizzle-orm";
 import mysql from "mysql2/promise";
+import type { MySql2Database } from "drizzle-orm/mysql2";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -19,6 +20,14 @@ import {
 import { ENV } from "./_core/env";
 
 /**
+ * Result type for insert operations
+ * Encapsulates the insertId returned by MySQL
+ */
+export interface InsertResult {
+  insertId: number;
+}
+
+/**
  * Convert Date to YYYY-MM-DD string format (using Taipei timezone)
  * Avoids timezone crossing issues (e.g., 00:xx-07:xx UTC becomes yesterday in UTC)
  */
@@ -32,7 +41,7 @@ export function toDateStr(d: Date): string {
   return formatter.format(d);
 }
 
-let _db: any = null;
+let _db: MySql2Database | null = null;
 let _pool: mysql.Pool | null = null;
 
 export async function getDb() {
@@ -390,7 +399,7 @@ export async function recordDailySignIn(userId: number) {
   // Record sign-in
   await db.insert(dailySignIns).values({
     userId,
-    signedInDate: todayStr,
+    signInDate: todayStr,
     xpEarned: 10,
   });
 
@@ -603,7 +612,7 @@ export async function saveAiCourse(
     userId,
     title: course.title,
     topic: course.topic,
-    proficiencyLevel: course.proficiencyLevel,
+    proficiencyLevel: course.proficiencyLevel as "junior_high" | "senior_high" | "college" | "advanced",
     vocabulary: course.content.vocabulary || [],
     grammar: course.content.grammar || {},
     readingMaterial: course.content.readingMaterial || {},
@@ -612,7 +621,7 @@ export async function saveAiCourse(
     isCompleted: false,
   });
 
-  return { success: true, courseId: result.insertId as number };
+  return { success: true, courseId: (result as any).insertId as number };
 }
 
 /**
@@ -768,7 +777,7 @@ export async function getSRSStats(userId: number) {
       .select({ avg: sql`AVG(CAST(easinessFactor AS DECIMAL(5,2))) as avg` })
       .from(cards)
       .where(eq(cards.userId, userId));
-    const averageEasiness = parseFloat(avgEasinessResult[0]?.avg || "2.5");
+    const averageEasiness = parseFloat((avgEasinessResult[0]?.avg as string) || "2.5");
 
     return {
       totalCards: Number(totalCards),

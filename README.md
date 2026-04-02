@@ -47,11 +47,11 @@
 ## 🏗️ 技術架構
 
 ### 前端
-- **React 18** - UI 框架
-- **Vite** - 構建工具
+- **React 19** - UI 框架
+- **Vite 7** - 構建工具
 - **Tailwind CSS 4** - 樣式框架
 - **shadcn/ui** - UI 組件庫
-- **tRPC** - 端到端類型安全的 RPC
+- **tRPC 11** - 端到端類型安全的 RPC
 - **Wouter** - 輕量級路由
 
 ### 後端
@@ -82,8 +82,9 @@
 - `writingSubmissions` - 寫作提交記錄
 
 #### 參考表
-- `dictionary` - 單字定義快取
+- `dictionaryCache` - 單字定義快取
 - `learningPaths` - 用戶學習路徑
+- `contentArchive` - 歷史內容歸檔
 
 ## 🚀 快速開始
 
@@ -91,7 +92,7 @@
 - Node.js 22+
 - pnpm 或 npm
 - MySQL 5.7+ 或 TiDB
-- Ollama（用## 🚀 快速開始
+- Ollama（用於本地 LLM 推理）
 
 ### 安裝與啟動
 
@@ -107,7 +108,7 @@
    ```
 
 3. **配置環境變數**
-   建立 `.env.local` 檔案並填入必要的配置（參考 `.env.example`）：
+   建立 `.env.local` 檔案並填入必要的配置：
    ```bash
    DATABASE_URL=mysql://user:password@localhost/english_learning_hub
    JWT_SECRET=<use 'openssl rand -hex 32' to generate>
@@ -158,8 +159,6 @@
 - `OWNER_NAME` - 項目所有者名稱
 - `OWNER_OPEN_ID` - 所有者 Open ID
 
-詳見上方環境變數配置了解完整說明。
-
 ## 📦 主要依賴
 
 ### 前端
@@ -198,212 +197,116 @@
    ```typescript
    // server/db.ts
    export async function getMyData(userId: number) {
-     const db = await getDb();
      return db.select().from(myTable).where(eq(myTable.userId, userId));
    }
    ```
 
-3. **創建 tRPC 程序**
+3. **添加 tRPC 路由**
    ```typescript
    // server/routers.ts
-   myFeature: protectedProcedure
-     .input(z.object({ id: z.number() }))
-     .query(async ({ ctx, input }) => {
-       return getMyData(ctx.user.id);
-     })
+   export const myRouter = router({
+     getData: protectedProcedure
+       .input(z.object({ id: z.number() }))
+       .query(async ({ ctx, input }) => {
+         return getMyData(input.id);
+       }),
+   });
    ```
 
-4. **前端調用 API**
+4. **在前端調用**
    ```typescript
-   // client/src/pages/MyPage.tsx
-   const { data } = trpc.myFeature.useQuery({ id: 1 });
+   const { data } = trpc.myRouter.getData.useQuery({ id: 1 });
    ```
 
-5. **添加測試**
-   ```bash
-   # server/myFeature.test.ts
-   pnpm test
-   ```
+## 🎓 API 文檔
 
-### 資料庫遷移
+### 影片學習 (video)
+- `video.list` - 獲取影片列表
+- `video.detail` - 獲取影片詳情（包含字幕）
+- `video.logProgress` - 記錄影片學習進度與 XP
 
-```bash
-# 生成遷移文件
-pnpm db:generate
-
-# 應用遷移
-pnpm db:push
-
-# 查看遷移歷史
-pnpm db:studio
+影片字幕結構：
+```typescript
+interface Subtitle {
+  start: number;  // 開始時間（秒）
+  end: number;    // 結束時間（秒）
+  text: string;   // 字幕文本
+}
 ```
+
+### 寫作練習 (writing)
+- `writing.getTodayChallenge` - 獲取今日寫作挑戰
+- `writing.checkGrammar` - 檢查文法與提供反饋
+- `writing.submit` - 提交寫作作品
+- `writing.listSubmissions` - 獲取提交歷史
+
+### SRS 單字卡 (srs)
+- `srs.addCard` - 添加新單字卡
+- `srs.getCards` - 獲取待複習卡片
+- `srs.reviewCard` - 複習卡片並更新 SRS 狀態
+- `srs.getStats` - 獲取 SRS 統計信息
+
+### AI 課程 (aiCourse)
+- `aiCourse.generate` - 生成新課程
+- `aiCourse.list` - 獲取用戶課程列表
+- `aiCourse.importToSRS` - 批量匯入課程到 SRS
+
+### 每日內容 (dailyContent)
+- `dailyContent.getTodayContent` - 獲取今日學習內容
+- `dailyContent.generate` - 手動觸發內容生成
 
 ## 🧪 測試
 
-運行所有測試：
+運行單元測試：
 ```bash
 pnpm test
 ```
 
-運行特定測試文件：
-```bash
-pnpm test server/auth.logout.test.ts
-```
+測試文件位置：`server/*.test.ts`
 
-監視模式：
-```bash
-pnpm test:watch
-```
+## 📝 代碼風格
 
-## 🏗️ 構建與部署
-
-### 開發構建
-```bash
-pnpm dev
-```
-
-### 生產構建
-```bash
-pnpm build
-```
-
-### 啟動生產服務器
-```bash
-pnpm start
-```
-
-## 📊 API 文檔
-
-### 認證
-- `auth.me` - 獲取當前用戶信息
-- `auth.logout` - 登出用戶
-
-### SRS 系統
-- `srs.getDueCards` - 獲取待複習卡片
-- `srs.addCard` - 添加新卡片
-- `srs.updateCard` - 更新卡片複習狀態
-- `srs.getStats` - 獲取 SRS 統計
-
-### AI 課程
-- `aiCourse.generate` - 生成新課程
-- `aiCourse.list` - 列出用戶課程
-- `aiCourse.importToSRS` - 匯入課程到 SRS
-
-### 內容
-- `content.generateToday` - 生成今日內容
-- `content.getTodayContent` - 獲取今日內容
-- `content.archive` - 歸檔內容
-
-### 影片學習
-- `video.list` - 列出可用影片（可按難度等級篩選）
-- `video.detail` - 獲取影片詳細信息（包含字幕）
-- `video.logProgress` - 記錄影片觀看進度並獲得 XP
-
-### 寫作練習
-- `writing.getTodayChallenge` - 獲取今日寫作挑戰
-- `writing.checkGrammar` - 檢查文法（返回糾正和建議）
-- `writing.submit` - 提交寫作並獲得評分與 XP
-- `writing.listSubmissions` - 列出用戶的寫作提交記錄
-
-### 學習路徑
-- `learningPath.get` - 獲取用戶學習路徑
-- `learningPath.upsert` - 更新學習路徑
-
-## 📝 資料庫架構詳解
-
-### Videos 表
-- `youtubeId` - YouTube 影片 ID（可選）
-- `url` - 影片 URL（自訂影片或 YouTube 嵌入）
-- `durationSeconds` - 影片時長（秒）
-- `transcript` - JSON 格式的字幕陣列 `[{time: number, text: string}]`
-- `proficiencyLevel` - 難度等級
-
-### WritingChallenges 表
-- `topic` - 寫作主題
-- `title` - 挑戰標題
-- `prompt` - 寫作提示
-- `proficiencyLevel` - 難度等級
-
-### WritingSubmissions 表
-- `content` - 用戶提交的寫作內容
-- `feedback` - LLM 生成的整體反饋
-- `errors` - JSON 格式的錯誤陣列（包含位置、原文、建議、類型、解釋）
-- `score` - 0-100 的評分
-- `xpEarned` - 獲得的經驗值
-
-### StudyLogs 表
-- `cardId` - 可為 NULL（支援非卡片活動如影片、寫作、測驗）
-- `activityType` - 活動類型：review, video, writing, quiz
-- `xpEarned` - 該活動獲得的 XP
+- 使用 TypeScript 進行完整的類型安全
+- 遵循 Prettier 格式化規範
+- 使用 Tailwind CSS 進行樣式設計
+- 使用 shadcn/ui 組件庫保持 UI 一致性
 
 ## 🔐 安全性
 
-### 認證
-- 所有受保護的 API 端點使用 `protectedProcedure`
-- JWT 會話 cookie 自動管理
-- OAuth 流程由 Manus 平台處理
+- OAuth 2.0 認證流程
+- JWT 會話管理
+- SQL 注入防護（使用 Drizzle ORM）
+- CORS 跨域保護
+- 速率限制（Express Rate Limit）
 
-### 授權
-- 用戶只能訪問自己的數據
-- 所有查詢都驗證 `userId == ctx.user.id`
-- 敏感操作需要額外驗證
-- importToSRS 驗證課程與 deck 所有權
-- 寫作提交只能由提交者本人查看
+## 📊 性能優化
 
-### 資料驗證
-- 所有輸入使用 Zod 驗證
-- 類型安全的 tRPC 程序
-- SQL 注入防護由 Drizzle ORM 提供
-- 寫作內容長度限制 10-5000 字
-- 文法檢查基於用戶難度等級
+- 客戶端代碼分割與懶加載
+- 資料庫查詢優化與索引
+- 緩存策略（字典、課程）
+- 生產構建優化
 
-## 🐛 常見問題
+## 🐛 故障排除
 
 ### 資料庫連接失敗
-```
-Error: connect ECONNREFUSED 127.0.0.1:3306
-```
-**解決方案**：確保 MySQL 服務正在運行，`DATABASE_URL` 配置正確
+確保 `DATABASE_URL` 正確配置，並且 MySQL 服務正在運行。
 
 ### OAuth 登入失敗
-```
-Error: Invalid app ID
-```
-**解決方案**：檢查 `VITE_APP_ID` 和 `OAUTH_SERVER_URL` 是否正確
+檢查 `VITE_APP_ID` 和 `OAUTH_SERVER_URL` 是否正確配置。
 
 ### Ollama 連接失敗
-```
-Error: Failed to connect to Ollama
-```
-**解決方案**：確保 Ollama 服務在運行，檢查連接地址
-
-## 📝 提交規範
-
-遵循 Conventional Commits：
-```
-feat: 添加新功能
-fix: 修復 bug
-docs: 文檔更新
-style: 代碼格式調整
-refactor: 代碼重構
-test: 添加測試
-chore: 依賴更新
-```
+確保 Ollama 服務正在運行（通常在 `http://localhost:11434`）。
 
 ## 📄 許可證
 
 MIT License
 
-## 🤝 貢獻
+## 👥 貢獻
 
-歡迎提交 Pull Request 和 Issue！
+歡迎提交 Issue 和 Pull Request！
 
-## 📧 聯繫方式
+## 📞 聯繫方式
 
 如有問題或建議，請通過以下方式聯繫：
 - 提交 GitHub Issue
-- 發送郵件至 support@example.com
-
----
-
-**最後更新**：2026 年 3 月 13 日
+- 發送郵件至項目所有者

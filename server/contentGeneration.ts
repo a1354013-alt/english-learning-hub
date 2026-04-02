@@ -17,6 +17,8 @@ const VOCABULARY_POOLS = {
     { word: "friendship", definition: "A close relationship between two people", usage: "Friendship is very important." },
     { word: "generous", definition: "Willing to give and share; not selfish", usage: "He is generous with his time." },
     { word: "happiness", definition: "The state of being happy; joy", usage: "Happiness comes from helping others." },
+    { word: "journey", definition: "A trip or travel from one place to another", usage: "Our journey to the mountains was exciting." },
+    { word: "knowledge", definition: "Information and skills acquired through experience or education", usage: "Knowledge is power." },
   ],
   senior_high: [
     { word: "ambition", definition: "A strong desire to succeed or achieve goals", usage: "Her ambition is to become a doctor." },
@@ -56,6 +58,8 @@ const PHRASES_POOLS = {
     { phrase: "Nice to meet you", definition: "A polite greeting when meeting someone for the first time", usage: "'Nice to meet you,' she said warmly." },
     { phrase: "What's your name?", definition: "A question asking for someone's name", usage: "In class, the teacher asked 'What's your name?'" },
     { phrase: "See you later", definition: "A casual goodbye", usage: "'See you later!' he waved as he left." },
+    { phrase: "Thank you very much", definition: "An expression of gratitude", usage: "'Thank you very much for your help,' she said." },
+    { phrase: "I'm sorry", definition: "An apology for a mistake or offense", usage: "'I'm sorry I'm late,' he apologized." },
   ],
   senior_high: [
     { phrase: "To make a long story short", definition: "To summarize or get to the point quickly", usage: "To make a long story short, we decided to move." },
@@ -74,6 +78,29 @@ const PHRASES_POOLS = {
     { phrase: "Quid pro quo", definition: "A favor or advantage granted in return for something", usage: "He expected quid pro quo for his help." },
     { phrase: "Raison d'être", definition: "The most important reason for someone's existence", usage: "Education is the raison d'être of the school." },
     { phrase: "Sui generis", definition: "Unique; being the only one of its kind", usage: "Her artistic style is sui generis." },
+  ],
+};
+
+const GRAMMAR_POOLS = {
+  junior_high: [
+    { topic: "Simple Present Tense", explanation: "Used for habits, facts, and general truths. Form: Subject + verb", example: "I eat breakfast every morning." },
+    { topic: "Present Continuous Tense", explanation: "Used for actions happening now. Form: Subject + am/is/are + verb-ing", example: "She is reading a book right now." },
+    { topic: "Past Tense", explanation: "Used for completed actions. Form: Subject + verb-ed", example: "They played football yesterday." },
+  ],
+  senior_high: [
+    { topic: "Present Perfect Tense", explanation: "Used for actions that started in the past and continue to present. Form: Subject + have/has + past participle", example: "I have lived here for five years." },
+    { topic: "Conditional Sentences", explanation: "Used to express conditions and results. Form: If + condition, result", example: "If you study hard, you will pass the exam." },
+    { topic: "Passive Voice", explanation: "Used when the object is more important than the subject. Form: Object + am/is/are/was/were + past participle", example: "The book was written by Jane Austen." },
+  ],
+  college: [
+    { topic: "Subjunctive Mood", explanation: "Used to express wishes, suggestions, or hypothetical situations. Form: I suggest that he be present", example: "It is important that she arrive on time." },
+    { topic: "Gerunds and Infinitives", explanation: "Gerunds (-ing) and infinitives (to + verb) can function as nouns", example: "I enjoy reading. I want to travel." },
+    { topic: "Complex Sentence Structures", explanation: "Combining independent and dependent clauses for sophisticated expression", example: "Although the weather was bad, we decided to go hiking." },
+  ],
+  advanced: [
+    { topic: "Advanced Syntax", explanation: "Sophisticated sentence construction with multiple clauses and rhetorical devices", example: "Not only did the evidence suggest guilt, but the defendant's testimony contradicted itself." },
+    { topic: "Stylistic Devices", explanation: "Techniques like parallelism, antithesis, and chiasmus for rhetorical effect", example: "Ask not what your country can do for you; ask what you can do for your country." },
+    { topic: "Register and Tone", explanation: "Adjusting language formality and emotional tone for different contexts", example: "The data substantiates the hypothesis (formal) vs. The numbers prove we're right (informal)." },
   ],
 };
 
@@ -141,12 +168,16 @@ export async function generateDailyContent(
   // Pick random sentence
   const sentence = sentencePool[Math.floor(Math.random() * sentencePool.length)];
 
+  // Pick random grammar
+  const grammarPool = GRAMMAR_POOLS[proficiencyLevel];
+  const grammar = grammarPool[Math.floor(Math.random() * grammarPool.length)];
+
   const contentItem: InsertGeneratedContent = {
     proficiencyLevel,
     generatedDate: today,
     isArchived: false,
     vocabulary: [vocab],
-    grammar: {},
+    grammar: grammar,
     readingMaterial: { phrase, sentence },
     exercises: [],
   };
@@ -184,7 +215,7 @@ export async function archiveOldContent() {
       )
     );
 
-  const updatedCount = result.rowsAffected || 0;
+  const updatedCount = (result as any).rowsAffected || 0;
   console.log(`[ContentGeneration] Archived ${updatedCount} old content items`);
   return updatedCount;
 }

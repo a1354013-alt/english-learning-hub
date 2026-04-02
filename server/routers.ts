@@ -143,7 +143,7 @@ export const appRouter = router({
                 createdAt: new Date(),
                 updatedAt: new Date(),
               });
-              deckId = insertResult.insertId as number;
+              deckId = (insertResult as any).insertId as number;
             } catch (insertError) {
               const retryDecks = await db
                 .select()
@@ -188,7 +188,7 @@ export const appRouter = router({
             .where(eq(decks.id, deckId));
           return {
             success: true,
-            data: { deckId, cardId: cardResult.insertId },
+            data: { deckId, cardId: (cardResult as any).insertId },
           };
         } catch (error) {
           const requestId = ctx.req.requestId || "unknown";
@@ -486,7 +486,7 @@ export const appRouter = router({
               description: "Imported from AI course: " + courseData.title,
               proficiencyLevel: courseData.proficiencyLevel,
             });
-            deckId = deckResult.insertId as number;
+            deckId = (deckResult as any).insertId as number;
           }
           
           // vocabulary is already an array from Drizzle
@@ -498,7 +498,7 @@ export const appRouter = router({
             backText: vocab.definition + "\n" + vocab.chineseTranslation,
             proficiencyLevel: courseData.proficiencyLevel,
             repetitionCount: 0,
-            easinessFactor: 2.5,
+            easinessFactor: "2.50" as any,
             interval: 1,
             nextReviewAt: new Date(),
           }));
@@ -608,11 +608,10 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         
-        let query = db.select().from(videos);
         if (input.level) {
-          query = query.where(eq(videos.proficiencyLevel, input.level));
+          return await db.select().from(videos).where(eq(videos.proficiencyLevel, input.level));
         }
-        return query;
+        return await db.select().from(videos)
       }),
     
     detail: protectedProcedure
@@ -806,7 +805,7 @@ export const appRouter = router({
         
         return {
           success: true,
-          submissionId: result.insertId,
+          submissionId: (result as any).insertId,
           score,
           xpEarned,
           feedback: feedback.feedback,

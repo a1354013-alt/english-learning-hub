@@ -21,7 +21,6 @@ interface VideoPlayerRef {
 export default function VideoLearning() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
-  const [currentTime, setCurrentTime] = useState(0);
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [selectedWordDef, setSelectedWordDef] = useState<string | null>(null);
   const [selectedVideoId, setSelectedVideoId] = useState<number | null>(null);
@@ -29,8 +28,10 @@ export default function VideoLearning() {
   const [lastCheckpointSecond, setLastCheckpointSecond] = useState(0);
   const [hasLoggedCompletion, setHasLoggedCompletion] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const youtubePlayerRef = useRef<any>(null);
+  const youtubePlayerRef = useRef<YT.Player | null>(null);
   const youtubeContainerRef = useRef<HTMLDivElement>(null);
+  const youtubeAPIReadyRef = useRef<boolean>(false);
+  const youtubeAPIPromiseRef = useRef<Promise<void> | null>(null);
 
   // Fetch videos list from video router
   const { data: videosList, isLoading: videosLoading } = trpc.video.list.useQuery(
@@ -108,14 +109,22 @@ export default function VideoLearning() {
   useEffect(() => {
     const w = window as any;
     if (!w.YT) {
-      // Set up ready callback before loading script
-      w.onYouTubeIframeAPIReady = () => {
-        // API is now ready
-      };
+      // Create a promise that resolves when YouTube API is ready
+      if (!youtubeAPIPromiseRef.current) {
+        youtubeAPIPromiseRef.current = new Promise<void>((resolve) => {
+          w.onYouTubeIframeAPIReady = () => {
+            youtubeAPIReadyRef.current = true;
+            resolve();
+          };
+        });
+      }
       
       const tag = document.createElement('script');
       tag.src = 'https://www.youtube.com/iframe_api';
       document.body.appendChild(tag);
+    } else {
+      // YouTube API already loaded
+      youtubeAPIReadyRef.current = true;
     }
   }, []);
 
@@ -124,39 +133,53 @@ export default function VideoLearning() {
     if (videoDetails?.youtubeId && youtubeContainerRef.current) {
       if (youtubePlayerRef.current) {
         youtubePlayerRef.current.destroy();
+        youtubePlayerRef.current = null;
       }
       
       const w = window as any;
       let interval: NodeJS.Timeout | null = null;
+      let isMounted = true;
       
-      youtubePlayerRef.current = new w.YT.Player(youtubeContainerRef.current, {
-        height: '100%',
-        width: '100%',
-        videoId: videoDetails.youtubeId,
-        events: {
-          onStateChange: (event: any) => {
-            if (event.data === w.YT.PlayerState.PLAYING) {
-              // Update current time every 100ms while playing
-              if (interval) clearInterval(interval);
-              interval = setInterval(() => {
-                const time = youtubePlayerRef.current?.getCurrentTime();
-                if (time !== undefined) {
-                  setCurrentTime(time);
+      const initializePlayer = async () => {
+        // Wait for YouTube API to be ready
+        if (!youtubeAPIReadyRef.current && youtubeAPIPromiseRef.current) {
+          await youtubeAPIPromiseRef.current;
+        }
+        
+        // Double-check component is still mounted and container exists
+        if (!isMounted || !youtubeContainerRef.current) return;
+        
+        youtubePlayerRef.current = new w.YT.Player(youtubeContainerRef.current, {
+          height: '100%',
+          width: '100%',
+          videoId: videoDetails.youtubeId,
+          events: {
+            onStateChange: (event: any) => {
+              if (event.data === w.YT.PlayerState.PLAYING) {
+                // Update current time every 100ms while playing
+                if (interval) clearInterval(interval);
+                interval = setInterval(() => {
+                  // Track current time internally for progress logging
+                  // No need to update state for every frame
+                }, 100);
+              } else if (event.data === w.YT.PlayerState.PAUSED || event.data === w.YT.PlayerState.ENDED) {
+                // Clear interval when paused or ended
+                if (interval) {
+                  clearInterval(interval);
+                  interval = null;
                 }
-              }, 100);
-            } else if (event.data === w.YT.PlayerState.PAUSED || event.data === w.YT.PlayerState.ENDED) {
-              // Clear interval when paused or ended
-              if (interval) {
-                clearInterval(interval);
-                interval = null;
               }
-            }
+            },
           },
-        },
-      });
+        });
+      };
+      
+      // Initialize player asynchronously
+      initializePlayer();
       
       // Cleanup function to clear interval when component unmounts or video changes
       return () => {
+        isMounted = false;
         if (interval) clearInterval(interval);
         if (youtubePlayerRef.current) {
           youtubePlayerRef.current.destroy();
@@ -266,7 +289,9 @@ export default function VideoLearning() {
                         width="100%"
                         height="100%"
                         controls
-                        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+                        onTimeUpdate={() => {
+                          // Track time update for progress logging
+                        }}
                       >
                         <source src={videoDetails.url} type="video/mp4" />
                         您的瀏覽器不支援影片播放

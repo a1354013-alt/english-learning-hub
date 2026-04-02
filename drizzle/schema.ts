@@ -188,7 +188,7 @@ export const videos = mysqlTable("videos", {
     "college",
     "advanced",
   ]).notNull(),
-  transcript: json("transcript"), // Array of subtitle objects: [{time: number, text: string}]
+  transcript: json("transcript"), // Array of subtitle objects: [{start: number, end: number, text: string}]
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -197,8 +197,9 @@ export type Video = typeof videos.$inferSelect;
 export type InsertVideo = typeof videos.$inferInsert;
 
 export type VideoTranscript = Array<{
-  time: number; // Start time in seconds
-  text: string; // Subtitle text
+  start: number; // Start time in seconds
+  end: number;   // End time in seconds
+  text: string;  // Subtitle text
 }>;
 
 /**
@@ -375,3 +376,30 @@ export const schedulerState = mysqlTable("schedulerState", {
 
 export type SchedulerState = typeof schedulerState.$inferSelect;
 export type InsertSchedulerState = typeof schedulerState.$inferInsert;
+
+
+/**
+ * Video progress tracking for deduplication (30-second window)
+ * Prevents duplicate XP rewards within 30 seconds
+ */
+export const videoProgress = mysqlTable(
+  "videoProgress",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    videoId: int("videoId").notNull(),
+    activityType: varchar("activityType", { length: 64 }).notNull(), // e.g., "watch", "subtitle_click"
+    lastLoggedAt: timestamp("lastLoggedAt").defaultNow().notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    userVideoActivityIdx: uniqueIndex("videoProgress_userId_videoId_activityType_idx").on(
+      table.userId,
+      table.videoId,
+      table.activityType
+    ),
+  })
+);
+
+export type VideoProgress = typeof videoProgress.$inferSelect;
+export type InsertVideoProgress = typeof videoProgress.$inferInsert;

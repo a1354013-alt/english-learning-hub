@@ -7,6 +7,31 @@ import App from "./App";
 import { getLoginUrl } from "./const";
 import "./index.css";
 
+/**
+ * Initialize analytics script dynamically if VITE_ANALYTICS_ENDPOINT is set
+ */
+function initializeAnalytics() {
+  const endpoint = import.meta.env.VITE_ANALYTICS_ENDPOINT;
+  const websiteId = import.meta.env.VITE_ANALYTICS_WEBSITE_ID;
+  
+  if (!endpoint || !websiteId) {
+    console.debug("[Analytics] Skipped: env vars not set");
+    return;
+  }
+  
+  const script = document.createElement("script");
+  script.defer = true;
+  script.src = `${endpoint}/umami`;
+  script.setAttribute("data-website-id", websiteId);
+  script.onerror = () => {
+    console.warn("[Analytics] Failed to load analytics script");
+  };
+  document.head.appendChild(script);
+  console.debug("[Analytics] Script loaded from", endpoint);
+}
+
+initializeAnalytics();
+
 const queryClient = new QueryClient();
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {

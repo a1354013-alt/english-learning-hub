@@ -4,7 +4,7 @@ import { GamificationStats } from "@/components/GamificationStats";
 import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
-import { BookOpen, Video, PenTool, Zap, Calendar, Archive } from "lucide-react";
+import { BookOpen, Video, PenTool, Zap, Calendar, Archive, Lightbulb, BookMarked } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -342,7 +342,7 @@ export default function Home() {
         </Card>
 
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-4">
           <Button className="h-24 text-lg" asChild>
             <a href="/srs">
               <Zap className="w-6 h-6 mr-2" />
@@ -359,6 +359,18 @@ export default function Home() {
             <a href="/writing">
               <PenTool className="w-6 h-6 mr-2" />
               寫作練習
+            </a>
+          </Button>
+          <Button className="h-24 text-lg" variant="outline" asChild>
+            <a href="/daily-content">
+              <Lightbulb className="w-6 h-6 mr-2" />
+              每日內容
+            </a>
+          </Button>
+          <Button className="h-24 text-lg" variant="outline" asChild>
+            <a href="/my-courses">
+              <BookMarked className="w-6 h-6 mr-2" />
+              我的課程
             </a>
           </Button>
           <Button className="h-24 text-lg" variant="outline" onClick={() => setLocation("/ai-course")}>
