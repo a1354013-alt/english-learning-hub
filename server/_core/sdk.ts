@@ -135,15 +135,16 @@ class SDKServer {
    * const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
    */
   async getUserInfo(accessToken: string): Promise<GetUserInfoResponse> {
-    const data = await this.oauthService.getUserInfoByToken({
+    const data: unknown = await this.oauthService.getUserInfoByToken({
       accessToken,
     } as ExchangeTokenResponse);
+    const dataObj = data as Record<string, unknown>;
     const loginMethod = this.deriveLoginMethod(
-      (data as any)?.platforms,
-      (data as any)?.platform ?? data.platform ?? null
+      dataObj?.platforms as unknown[],
+      (dataObj?.platform ?? (data as any)?.platform ?? null) as string | null
     );
     return {
-      ...(data as any),
+      ...dataObj,
       platform: loginMethod,
       loginMethod,
     } as GetUserInfoResponse;
@@ -257,12 +258,13 @@ class SDKServer {
       payload
     );
 
+    const dataObj = data as unknown as Record<string, unknown>;
     const loginMethod = this.deriveLoginMethod(
-      (data as any)?.platforms,
-      (data as any)?.platform ?? data.platform ?? null
+      dataObj?.platforms as unknown[],
+      (dataObj?.platform ?? null) as string | null
     );
     return {
-      ...(data as any),
+      ...dataObj,
       platform: loginMethod,
       loginMethod,
     } as GetUserInfoWithJwtResponse;

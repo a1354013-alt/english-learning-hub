@@ -14,6 +14,7 @@ import {
   getGeneratedContent,
   archiveGeneratedContent,
   getDb,
+  getInsertId,
   type InsertResult,
 } from "./db";
 import { TRPCError } from "@trpc/server";
@@ -144,9 +145,7 @@ export const appRouter = router({
                 createdAt: new Date(),
                 updatedAt: new Date(),
               });
-              const insertId = (insertResult as { insertId?: number }).insertId;
-              if (!insertId) throw new Error("Failed to get deck insert ID");
-              deckId = insertId;
+              deckId = getInsertId(insertResult);
             } catch (insertError) {
               const retryDecks = await db
                 .select()
@@ -189,11 +188,9 @@ export const appRouter = router({
             .update(decks)
             .set({ cardCount: sql`cardCount + 1` })
             .where(eq(decks.id, deckId));
-          const cardId = (cardResult as { insertId?: number }).insertId;
-          if (!cardId) throw new Error("Failed to get card insert ID");
           return {
             success: true,
-            data: { deckId, cardId },
+            data: { deckId, cardId: getInsertId(cardResult) },
           };
         } catch (error) {
           const requestId = ctx.req.requestId || "unknown";
@@ -491,9 +488,7 @@ export const appRouter = router({
               description: "Imported from AI course: " + courseData.title,
               proficiencyLevel: courseData.proficiencyLevel,
             });
-            const deckInsertId = (deckResult as { insertId?: number }).insertId;
-            if (!deckInsertId) throw new Error("Failed to get deck insert ID");
-            deckId = deckInsertId;
+            deckId = getInsertId(deckResult);
           }
           
           // vocabulary is already an array from Drizzle
@@ -828,11 +823,9 @@ export const appRouter = router({
           createdAt: new Date(),
         });
         
-        const submissionId = (result as { insertId?: number }).insertId;
-        if (!submissionId) throw new Error("Failed to get submission insert ID");
         return {
           success: true,
-          submissionId,
+          submissionId: getInsertId(result),
           score,
           xpEarned,
           feedback: feedback.feedback,

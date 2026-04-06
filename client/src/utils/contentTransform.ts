@@ -76,12 +76,15 @@ export function transformGeneratedContent(data: unknown): GeneratedContentData {
     readingMaterial.phrase
   ) {
     const phraseObj = readingMaterial.phrase;
-    if (typeof phraseObj === "object" && "phrase" in phraseObj) {
-      phrases.push({
-        phrase: (phraseObj as { phrase: string }).phrase,
-        definition: (phraseObj as { definition?: string }).definition,
-        usage: (phraseObj as { usage?: string }).usage,
-      });
+    if (typeof phraseObj === "object" && phraseObj !== null && "phrase" in phraseObj) {
+      const phraseRecord = phraseObj as Record<string, unknown>;
+      if (typeof phraseRecord.phrase === "string") {
+        phrases.push({
+          phrase: phraseRecord.phrase,
+          definition: typeof phraseRecord.definition === "string" ? phraseRecord.definition : undefined,
+          usage: typeof phraseRecord.usage === "string" ? phraseRecord.usage : undefined,
+        });
+      }
     }
   }
 
@@ -94,12 +97,15 @@ export function transformGeneratedContent(data: unknown): GeneratedContentData {
     readingMaterial.sentence
   ) {
     const sentenceObj = readingMaterial.sentence;
-    if (typeof sentenceObj === "object" && "sentence" in sentenceObj) {
-      sentences.push({
-        sentence: (sentenceObj as { sentence: string }).sentence,
-        definition: (sentenceObj as { definition?: string }).definition,
-        usage: (sentenceObj as { usage?: string }).usage,
-      });
+    if (typeof sentenceObj === "object" && sentenceObj !== null && "sentence" in sentenceObj) {
+      const sentenceRecord = sentenceObj as Record<string, unknown>;
+      if (typeof sentenceRecord.sentence === "string") {
+        sentences.push({
+          sentence: sentenceRecord.sentence,
+          definition: typeof sentenceRecord.definition === "string" ? sentenceRecord.definition : undefined,
+          usage: typeof sentenceRecord.usage === "string" ? sentenceRecord.usage : undefined,
+        });
+      }
     }
   }
 

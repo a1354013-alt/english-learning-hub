@@ -28,6 +28,18 @@ export interface InsertResult {
 }
 
 /**
+ * Extract insertId from database insert result
+ * Provides unified type-safe handling of insert ID extraction
+ */
+export function getInsertId(result: unknown): number {
+  const insertId = (result as { insertId?: number }).insertId;
+  if (!insertId) {
+    throw new Error("Failed to get insert ID from database result");
+  }
+  return insertId;
+}
+
+/**
  * Convert Date to YYYY-MM-DD string format (using Taipei timezone)
  * Avoids timezone crossing issues (e.g., 00:xx-07:xx UTC becomes yesterday in UTC)
  */
@@ -606,7 +618,7 @@ export async function saveAiCourse(
   course: {
     title: string;
     topic?: string;
-    proficiencyLevel: string;
+    proficiencyLevel: "junior_high" | "senior_high" | "college" | "advanced";
     content: AiCourseContent;
   }
 ) {
@@ -619,7 +631,7 @@ export async function saveAiCourse(
     userId,
     title: course.title,
     topic: course.topic,
-    proficiencyLevel: course.proficiencyLevel as "junior_high" | "senior_high" | "college" | "advanced",
+    proficiencyLevel: course.proficiencyLevel,
     vocabulary: course.content.vocabulary || [],
     grammar: course.content.grammar || {},
     readingMaterial: course.content.readingMaterial || {},
@@ -628,12 +640,7 @@ export async function saveAiCourse(
     isCompleted: false,
   });
 
-  // Extract insertId from result - Drizzle returns result with insertId property
-  const insertId = (result as { insertId?: number }).insertId;
-  if (!insertId) {
-    throw new Error("Failed to get insert ID from database result");
-  }
-  return { success: true, courseId: insertId };
+  return { success: true, courseId: getInsertId(result) };
 }
 
 /**

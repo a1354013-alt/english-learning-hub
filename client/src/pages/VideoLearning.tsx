@@ -94,11 +94,11 @@ export default function VideoLearning() {
   const addToCards = async () => {
     if (selectedWord && selectedWordDef && videoDetails) {
       // Use video proficiency level as proficiency level
-      const proficiencyLevel = videoDetails.proficiencyLevel as "junior_high" | "senior_high" | "college" | "advanced";
+      // videoDetails.proficiencyLevel is already properly typed from tRPC query
       addToCardsMutation.mutate({
         frontText: selectedWord,
         backText: selectedWordDef,
-        proficiencyLevel,
+        proficiencyLevel: videoDetails.proficiencyLevel,
       });
     }
   };
@@ -251,10 +251,10 @@ export default function VideoLearning() {
   }
 
   // Parse transcript from JSON with error handling
-  const safeParseJSON = (data: any): Subtitle[] => {
+  const safeParseJSON = (data: unknown): Subtitle[] => {
     try {
-      if (Array.isArray(data)) return data;
-      if (typeof data === 'string') return JSON.parse(data);
+      if (Array.isArray(data)) return data as Subtitle[];
+      if (typeof data === 'string') return JSON.parse(data) as Subtitle[];
       return [];
     } catch (error) {
       console.error('Failed to parse transcript:', error);
