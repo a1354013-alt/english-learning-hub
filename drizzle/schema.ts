@@ -125,6 +125,7 @@ export const studyLogs = mysqlTable("studyLogs", {
   activityType: mysqlEnum("activityType", ["review", "video", "writing", "quiz"]).notNull(),
   quality: int("quality"), // 0-5 quality score (optional, only for review activity)
   xpEarned: int("xpEarned").default(0).notNull(),
+  metadata: json("metadata"), // For video: { videoId, checkpointSecond }
   createdAt: timestamp("createdAt").defaultNow().notNull()
 });
 
@@ -378,28 +379,3 @@ export type SchedulerState = typeof schedulerState.$inferSelect;
 export type InsertSchedulerState = typeof schedulerState.$inferInsert;
 
 
-/**
- * Video progress tracking for deduplication (30-second window)
- * Prevents duplicate XP rewards within 30 seconds
- */
-export const videoProgress = mysqlTable(
-  "videoProgress",
-  {
-    id: int("id").autoincrement().primaryKey(),
-    userId: int("userId").notNull(),
-    videoId: int("videoId").notNull(),
-    activityType: varchar("activityType", { length: 64 }).notNull(), // e.g., "watch", "subtitle_click"
-    lastLoggedAt: timestamp("lastLoggedAt").defaultNow().notNull(),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-  },
-  (table) => ({
-    userVideoActivityIdx: uniqueIndex("videoProgress_userId_videoId_activityType_idx").on(
-      table.userId,
-      table.videoId,
-      table.activityType
-    ),
-  })
-);
-
-export type VideoProgress = typeof videoProgress.$inferSelect;
-export type InsertVideoProgress = typeof videoProgress.$inferInsert;

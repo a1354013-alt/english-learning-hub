@@ -13,18 +13,16 @@ import AICourseGenerator from "./pages/AICourseGenerator";
 import MyCourses from "./pages/MyCourses";
 import SubmissionHistory from "./pages/SubmissionHistory";
 import { useAuth } from "./_core/hooks/useAuth";
-import { useLocation } from "wouter";
+
 import { useEffect } from "react";
 import { getLoginUrl } from "./const";
 
 // Protected route wrapper that redirects to OAuth if not authenticated
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
-  const [, setLocation] = useLocation();
   
   useEffect(() => {
     if (!loading && !isAuthenticated) {
-      // Redirect to OAuth login portal
       window.location.href = getLoginUrl();
     }
   }, [isAuthenticated, loading]);
@@ -37,11 +35,7 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
     );
   }
   
-  if (!isAuthenticated) {
-    return null;
-  }
-  
-  return <>{children}</>;
+  return isAuthenticated ? <>{children}</> : null;
 }
 
 function Router() {

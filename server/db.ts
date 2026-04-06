@@ -594,13 +594,20 @@ export async function archiveGeneratedContent(contentId: number) {
 /**
  * Save AI-generated course
  */
+interface AiCourseContent {
+  vocabulary?: unknown[];
+  grammar?: Record<string, unknown>;
+  readingMaterial?: Record<string, unknown>;
+  exercises?: unknown[];
+}
+
 export async function saveAiCourse(
   userId: number,
   course: {
     title: string;
     topic?: string;
     proficiencyLevel: string;
-    content: any;
+    content: AiCourseContent;
   }
 ) {
   const db = await getDb();
@@ -621,7 +628,12 @@ export async function saveAiCourse(
     isCompleted: false,
   });
 
-  return { success: true, courseId: (result as any).insertId as number };
+  // Extract insertId from result - Drizzle returns result with insertId property
+  const insertId = (result as { insertId?: number }).insertId;
+  if (!insertId) {
+    throw new Error("Failed to get insert ID from database result");
+  }
+  return { success: true, courseId: insertId };
 }
 
 /**
@@ -647,12 +659,14 @@ export async function getAiCourses(
     .orderBy(desc(aiCourses.generatedAt));
 
   // Objects are already parsed by Drizzle from JSON columns
-  return courses.map((course: any) => ({
+  // Return courses with properly normalized JSON fields
+  return courses.map((course) => ({
     ...course,
-    vocabulary: Array.isArray(course.vocabulary) ? course.vocabulary : [],
-    grammar: typeof course.grammar === 'object' && course.grammar !== null ? course.grammar : {},
-    readingMaterial: typeof course.readingMaterial === 'object' && course.readingMaterial !== null ? course.readingMaterial : {},
-    exercises: Array.isArray(course.exercises) ? course.exercises : [],
+    topic: course.topic ?? undefined,
+    vocabulary: Array.isArray(course.vocabulary) ? (course.vocabulary as unknown[]) : [],
+    grammar: typeof course.grammar === 'object' && course.grammar !== null ? (course.grammar as Record<string, unknown>) : {},
+    readingMaterial: typeof course.readingMaterial === 'object' && course.readingMaterial !== null ? (course.readingMaterial as Record<string, unknown>) : {},
+    exercises: Array.isArray(course.exercises) ? (course.exercises as unknown[]) : [],
   }));
 }
 

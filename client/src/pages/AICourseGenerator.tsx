@@ -15,24 +15,24 @@ import { BookOpen, ArrowLeft, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
+type ProficiencyLevel = "junior_high" | "senior_high" | "college" | "advanced";
+
 export default function AICourseGenerator() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
-  const [proficiencyLevel, setProficiencyLevel] = useState("junior_high");
+  const [proficiencyLevel, setProficiencyLevel] = useState<ProficiencyLevel>("junior_high");
   const [topic, setTopic] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
 
   // Generate course mutation
   const generateMutation = trpc.aiCourse.generate.useMutation({
     onSuccess: () => {
       toast.success("課程生成成功！");
-      setIsGenerating(false);
       setTopic("");
-      setTimeout(() => setLocation("/my-courses"), 1000);
+      // Navigate to my courses immediately after successful generation
+      setLocation("/my-courses");
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast.error(error.message || "課程生成失敗");
-      setIsGenerating(false);
     },
   });
 
@@ -42,9 +42,8 @@ export default function AICourseGenerator() {
       return;
     }
 
-    setIsGenerating(true);
     generateMutation.mutate({
-      proficiencyLevel: proficiencyLevel as any,
+      proficiencyLevel,
       topic: topic.trim(),
     });
   };
@@ -103,7 +102,7 @@ export default function AICourseGenerator() {
               {/* Proficiency Level */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">英文程度</label>
-                <Select value={proficiencyLevel} onValueChange={setProficiencyLevel}>
+                <Select value={proficiencyLevel} onValueChange={(value) => setProficiencyLevel(value as ProficiencyLevel)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -123,7 +122,7 @@ export default function AICourseGenerator() {
                   placeholder="例如：旅遊、美食、科技、運動..."
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
-                  disabled={isGenerating}
+                  disabled={generateMutation.isPending}
                 />
                 <p className="text-xs text-muted-foreground">
                   輸入您想學習的主題，AI 將根據該主題生成相關的英文課程。
@@ -133,10 +132,10 @@ export default function AICourseGenerator() {
               {/* Generate Button */}
               <Button
                 onClick={handleGenerate}
-                disabled={isGenerating || !topic.trim()}
+                disabled={generateMutation.isPending || !topic.trim()}
                 className="w-full h-12 text-lg"
               >
-                {isGenerating ? (
+                {generateMutation.isPending ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                     生成中... (約 30 秒)
@@ -146,7 +145,7 @@ export default function AICourseGenerator() {
                 )}
               </Button>
 
-              {isGenerating && (
+              {generateMutation.isPending && (
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-900">
                     ⏳ 正在使用 AI 生成課程，請耐心等候...

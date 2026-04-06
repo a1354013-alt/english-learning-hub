@@ -1,44 +1,5 @@
 import { describe, it, expect } from "vitest";
-
-/**
- * Transform generated content data into display format
- * Handles missing fields gracefully
- */
-export function transformGeneratedContent(data: any) {
-  if (!data) {
-    return {
-      vocabulary: [],
-      phrases: [],
-      sentences: [],
-      grammar: null,
-    };
-  }
-
-  return {
-    vocabulary: Array.isArray(data.vocabulary) ? data.vocabulary : [],
-    phrases:
-      data.readingMaterial && data.readingMaterial.phrase
-        ? [{ phrase: data.readingMaterial.phrase }]
-        : [],
-    sentences:
-      data.readingMaterial && data.readingMaterial.sentence
-        ? [{ sentence: data.readingMaterial.sentence }]
-        : [],
-    grammar: data.grammar || null,
-  };
-}
-
-/**
- * Safe JSON parsing with error handling
- */
-export function safeParse(jsonString: string) {
-  try {
-    return JSON.parse(jsonString);
-  } catch (error) {
-    console.error("JSON parse error:", error);
-    return null;
-  }
-}
+import { transformGeneratedContent, safeParseJSON } from "@/utils/contentTransform";
 
 describe("transformGeneratedContent", () => {
   it("should handle null data", () => {
@@ -59,12 +20,12 @@ describe("transformGeneratedContent", () => {
 
   it("should transform valid data correctly", () => {
     const data = {
-      vocabulary: [{ word: "apple", definition: "A fruit" }],
+      vocabulary: [{ word: "apple", definition: "A fruit", usage: "I eat an apple" }],
       readingMaterial: {
         phrase: "How are you?",
         sentence: "I am fine.",
       },
-      grammar: { topic: "Present Tense" },
+      grammar: { topic: "Present Tense", explanation: "Used for habits", example: "I eat breakfast" },
     };
 
     const result = transformGeneratedContent(data);
@@ -74,12 +35,12 @@ describe("transformGeneratedContent", () => {
     expect(result.phrases[0].phrase).toBe("How are you?");
     expect(result.sentences).toHaveLength(1);
     expect(result.sentences[0].sentence).toBe("I am fine.");
-    expect(result.grammar.topic).toBe("Present Tense");
+    expect(result.grammar?.topic).toBe("Present Tense");
   });
 
   it("should handle missing readingMaterial", () => {
     const data = {
-      vocabulary: [{ word: "test" }],
+      vocabulary: [{ word: "test", definition: "A test", usage: "This is a test" }],
     };
 
     const result = transformGeneratedContent(data);
@@ -96,41 +57,55 @@ describe("transformGeneratedContent", () => {
     const result = transformGeneratedContent(data);
     expect(result.vocabulary).toEqual([]);
   });
+
+  it("should handle empty data object", () => {
+    const result = transformGeneratedContent({});
+    expect(result.vocabulary).toEqual([]);
+    expect(result.phrases).toEqual([]);
+    expect(result.sentences).toEqual([]);
+    expect(result.grammar).toBeNull();
+  });
 });
 
-describe("safeParse", () => {
+describe("safeParseJSON", () => {
   it("should parse valid JSON", () => {
     const json = '{"key": "value", "number": 42}';
-    const result = safeParse(json);
+    const result = safeParseJSON(json);
     expect(result).toEqual({ key: "value", number: 42 });
   });
 
   it("should return null for invalid JSON", () => {
     const json = "{invalid json}";
-    const result = safeParse(json);
+    const result = safeParseJSON(json);
     expect(result).toBeNull();
   });
 
   it("should handle empty string", () => {
-    const result = safeParse("");
+    const result = safeParseJSON("");
     expect(result).toBeNull();
   });
 
   it("should handle JSON arrays", () => {
     const json = '[1, 2, 3]';
-    const result = safeParse(json);
+    const result = safeParseJSON(json);
     expect(result).toEqual([1, 2, 3]);
   });
 
   it("should handle nested objects", () => {
     const json = '{"nested": {"key": "value"}}';
-    const result = safeParse(json);
-    expect(result.nested.key).toBe("value");
+    const result = safeParseJSON(json);
+    expect(result?.nested?.key).toBe("value");
   });
 
   it("should handle JSON with special characters", () => {
     const json = '{"text": "Hello\\nWorld"}';
-    const result = safeParse(json);
-    expect(result.text).toBe("Hello\nWorld");
+    const result = safeParseJSON(json);
+    expect(result?.text).toBe("Hello\nWorld");
+  });
+
+  it("should handle JSON with unicode", () => {
+    const json = '{"text": "你好世界"}';
+    const result = safeParseJSON(json);
+    expect(result?.text).toBe("你好世界");
   });
 });

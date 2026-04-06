@@ -14,6 +14,7 @@ import {
   getGeneratedContent,
   archiveGeneratedContent,
   getDb,
+  type InsertResult,
 } from "./db";
 import { TRPCError } from "@trpc/server";
 import { generateDailyContent, archiveOldContent } from "./contentGeneration";
@@ -143,7 +144,9 @@ export const appRouter = router({
                 createdAt: new Date(),
                 updatedAt: new Date(),
               });
-              deckId = (insertResult as any).insertId as number;
+              const insertId = (insertResult as { insertId?: number }).insertId;
+              if (!insertId) throw new Error("Failed to get deck insert ID");
+              deckId = insertId;
             } catch (insertError) {
               const retryDecks = await db
                 .select()
@@ -186,9 +189,11 @@ export const appRouter = router({
             .update(decks)
             .set({ cardCount: sql`cardCount + 1` })
             .where(eq(decks.id, deckId));
+          const cardId = (cardResult as { insertId?: number }).insertId;
+          if (!cardId) throw new Error("Failed to get card insert ID");
           return {
             success: true,
-            data: { deckId, cardId: (cardResult as any).insertId },
+            data: { deckId, cardId },
           };
         } catch (error) {
           const requestId = ctx.req.requestId || "unknown";
@@ -486,19 +491,26 @@ export const appRouter = router({
               description: "Imported from AI course: " + courseData.title,
               proficiencyLevel: courseData.proficiencyLevel,
             });
-            deckId = (deckResult as any).insertId as number;
+            const deckInsertId = (deckResult as { insertId?: number }).insertId;
+            if (!deckInsertId) throw new Error("Failed to get deck insert ID");
+            deckId = deckInsertId;
           }
           
           // vocabulary is already an array from Drizzle
+          interface VocabularyItem {
+            word: string;
+            definition: string;
+            chineseTranslation: string;
+          }
           const vocabulary = Array.isArray(courseData.vocabulary) ? courseData.vocabulary : [];
-          const cardInserts = vocabulary.map((vocab: any) => ({
+          const cardInserts = vocabulary.map((vocab: VocabularyItem) => ({
             userId: ctx.user.id,
             deckId,
             frontText: vocab.word,
             backText: vocab.definition + "\n" + vocab.chineseTranslation,
             proficiencyLevel: courseData.proficiencyLevel,
             repetitionCount: 0,
-            easinessFactor: "2.50" as any,
+            easinessFactor: "2.50",
             interval: 1,
             nextReviewAt: new Date(),
           }));
@@ -643,13 +655,13 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid video duration" });
         }
         
-        // Server-side deduplication: Check if we already logged this specific video at this checkpoint
-        // Group by 30-second windows to prevent duplicate XP for same checkpoint
-        const checkpointSecond = Math.floor(input.currentTime / 30) * 30;
+        // Server-side deduplication using studyLogs.metadata
+        // Normalize checkpoint to floor of current time (in seconds)
+        const checkpointSecond = Math.floor(input.currentTime);
         const thirtySecondsAgo = new Date(Date.now() - 30000);
         
-        // Check for recent logs of the same video at the same checkpoint
-        const recentLog = await db
+        // Check for recent logs with matching videoId and checkpointSecond in metadata
+        const recentLogs = await db
           .select()
           .from(studyLogs)
           .where(
@@ -659,10 +671,22 @@ export const appRouter = router({
               sql`${studyLogs.createdAt} >= ${thirtySecondsAgo}`
             )
           )
-          .limit(1);
+          .limit(10);
         
-        // If we already logged in the last 30 seconds, skip to prevent duplication
-        if (recentLog.length > 0) {
+        // Check if any recent log matches this videoId and checkpoint
+        const isDuplicate = recentLogs.some((log) => {
+          try {
+            const metadata = typeof log.metadata === 'string' ? JSON.parse(log.metadata) : log.metadata;
+            return (
+              metadata?.videoId === input.videoId &&
+              metadata?.checkpointSecond === checkpointSecond
+            );
+          } catch {
+            return false;
+          }
+        });
+        
+        if (isDuplicate) {
           return { success: true, xpEarned: 0, deduplicated: true };
         }
         
@@ -675,6 +699,7 @@ export const appRouter = router({
           cardId: null,
           activityType: "video",
           xpEarned: Math.max(1, xpEarned),
+          metadata: JSON.stringify({ videoId: input.videoId, checkpointSecond }),
           createdAt: new Date(),
         });
         
@@ -702,7 +727,7 @@ export const appRouter = router({
         
         const userLevel = userResult[0].proficiencyLevel;
         
-        // Get a random challenge for user's level
+        // Get a writing challenge matching user's proficiency level
         const challenges = await db
           .select()
           .from(writingChallenges)
@@ -803,9 +828,11 @@ export const appRouter = router({
           createdAt: new Date(),
         });
         
+        const submissionId = (result as { insertId?: number }).insertId;
+        if (!submissionId) throw new Error("Failed to get submission insert ID");
         return {
           success: true,
-          submissionId: (result as any).insertId,
+          submissionId,
           score,
           xpEarned,
           feedback: feedback.feedback,

@@ -67,15 +67,15 @@ function normalizeKey(relKey: string): string {
   return normalized;
 }
 
-function toFormData(
+function buildFormData(
   data: Buffer | Uint8Array | string,
   contentType: string,
-  fileName: string
+  fileName?: string
 ): FormData {
   const blob =
     typeof data === "string"
       ? new Blob([data], { type: contentType })
-      : new Blob([data as any], { type: contentType });
+      : new Blob([new Uint8Array(data)], { type: contentType });
   const form = new FormData();
   form.append("file", blob, fileName || "file");
   return form;
@@ -93,7 +93,7 @@ export async function storagePut(
   const { baseUrl, apiKey } = getStorageConfig();
   const key = normalizeKey(relKey);
   const uploadUrl = buildUploadUrl(baseUrl, key);
-  const formData = toFormData(data, contentType, key.split("/").pop() ?? key);
+  const formData = buildFormData(data, contentType, key.split("/").pop() ?? key);
   const response = await fetch(uploadUrl, {
     method: "POST",
     headers: buildAuthHeaders(apiKey),
@@ -110,7 +110,7 @@ export async function storagePut(
   return { key, url };
 }
 
-export async function storageGet(relKey: string): Promise<{ key: string; url: string; }> {
+export async function storageGet(relKey: string): Promise<{ key: string; url: string }> {
   const { baseUrl, apiKey } = getStorageConfig();
   const key = normalizeKey(relKey);
   return {

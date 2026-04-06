@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { BookOpen, ArrowLeft, AlertCircle, CheckCircle } from "lucide-react";
-import { useLocation } from "wouter";
 import { toast } from "sonner";
 
 interface GrammarCorrection {
@@ -56,6 +56,8 @@ export default function WritingPractice() {
       setContent("");
       setHasChecked(false);
       setCheckResult(null);
+      // Navigate to submission history immediately after successful submit
+      setLocation("/submission-history");
     },
     onError: (error) => {
       toast.error(error.message || "提交失敗");

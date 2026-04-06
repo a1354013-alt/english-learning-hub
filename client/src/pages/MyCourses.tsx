@@ -52,15 +52,18 @@ interface AiCourse {
   id: number;
   userId: number;
   title: string;
-  topic?: string;
+  topic: string | null;
+  description: string | null;
   proficiencyLevel: ProficiencyLevel;
-  generatedAt: string;
+  generatedAt: Date;
   isCompleted: boolean;
-  rating?: number;
-  vocabulary?: VocabularyItem[];
-  grammar?: GrammarContent;
-  readingMaterial?: ReadingMaterial;
-  exercises?: Exercise[];
+  rating: number | null;
+  vocabulary: VocabularyItem[];
+  grammar: GrammarContent | null;
+  readingMaterial: ReadingMaterial | null;
+  exercises: Exercise[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export default function MyCourses() {
@@ -126,7 +129,8 @@ export default function MyCourses() {
 
   useEffect(() => {
     if (coursesList) {
-      setCourses(coursesList);
+      // tRPC returns unknown fields, but we know the structure from our schema
+      setCourses(coursesList as unknown as AiCourse[]);
     }
   }, [coursesList]);
 
@@ -208,11 +212,11 @@ export default function MyCourses() {
                 </div>
 
                 {/* Vocabulary */}
-                {selectedCourse.vocabulary && selectedCourse.vocabulary.length > 0 && (
+                {Array.isArray(selectedCourse.vocabulary) && selectedCourse.vocabulary.length > 0 && (
                   <div className="space-y-3">
                     <h3 className="font-bold text-lg">詞彙</h3>
                     <div className="grid md:grid-cols-2 gap-3">
-                      {selectedCourse.vocabulary?.map((vocab: VocabularyItem, idx: number) => (
+                      {selectedCourse.vocabulary.map((vocab: VocabularyItem, idx: number) => (
                         <div key={idx} className="border border-border rounded-lg p-3">
                           <p className="font-bold">{vocab.word}</p>
                           <p className="text-sm text-muted-foreground italic">
@@ -229,30 +233,30 @@ export default function MyCourses() {
                 )}
 
                 {/* Grammar */}
-                {selectedCourse.grammar && (
+                {selectedCourse.grammar && typeof selectedCourse.grammar === 'object' && 'explanation' in selectedCourse.grammar && (
                   <div className="space-y-2">
                     <h3 className="font-bold text-lg">文法</h3>
-                    <p className="font-medium">{selectedCourse.grammar.title}</p>
-                    <p className="text-sm">{selectedCourse.grammar.explanation}</p>
+                    <p className="font-medium">{(selectedCourse.grammar as GrammarContent).topic || (selectedCourse.grammar as GrammarContent).title}</p>
+                    <p className="text-sm">{(selectedCourse.grammar as GrammarContent).explanation}</p>
                   </div>
                 )}
 
                 {/* Reading Material */}
-                {selectedCourse.readingMaterial && (
+                {selectedCourse.readingMaterial && typeof selectedCourse.readingMaterial === 'object' && 'title' in selectedCourse.readingMaterial && (
                   <div className="space-y-2">
                     <h3 className="font-bold text-lg">閱讀材料</h3>
-                    <p className="font-medium">{selectedCourse.readingMaterial.title}</p>
+                    <p className="font-medium">{(selectedCourse.readingMaterial as ReadingMaterial).title}</p>
                     <p className="text-sm whitespace-pre-wrap">
-                      {selectedCourse.readingMaterial.content}
+                      {(selectedCourse.readingMaterial as ReadingMaterial).content}
                     </p>
                   </div>
                 )}
 
                 {/* Exercises */}
-                {selectedCourse.exercises && selectedCourse.exercises.length > 0 && (
+                {Array.isArray(selectedCourse.exercises) && selectedCourse.exercises.length > 0 && (
                   <div className="space-y-3">
                     <h3 className="font-bold text-lg">練習題</h3>
-                    {selectedCourse.exercises?.map((exercise: Exercise, idx: number) => (
+                    {selectedCourse.exercises.map((exercise: Exercise, idx: number) => (
                       <div key={idx} className="border border-border rounded-lg p-3">
                         <p className="font-medium">{exercise.question}</p>
                         {exercise.options && (
@@ -324,7 +328,7 @@ export default function MyCourses() {
                   <Button
                     variant="outline"
                     onClick={() => {
-                      if (!selectedCourse?.vocabulary || selectedCourse.vocabulary.length === 0) {
+                      if (!selectedCourse?.vocabulary || !Array.isArray(selectedCourse.vocabulary) || selectedCourse.vocabulary.length === 0) {
                         toast.error("此課程沒有詞彙可導入");
                         return;
                       }

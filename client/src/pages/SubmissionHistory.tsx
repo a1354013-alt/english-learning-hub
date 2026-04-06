@@ -6,14 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { useLocation } from "wouter";
 
-interface SubmissionItem {
+// Infer SubmissionItem type from tRPC query output
+type SubmissionItem = {
   id: number;
+  userId: number;
   challengeId: number;
   content: string;
-  score: number;
-  feedback: string;
+  feedback: string | null;
+  errors: unknown;
+  score: number | null;
   xpEarned: number;
-  submittedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export default function SubmissionHistory() {
@@ -22,7 +26,7 @@ export default function SubmissionHistory() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   // Fetch submission history
-  const { data: submissions, isLoading } = trpc.writing.getSubmissionHistory.useQuery(
+  const { data: submissions, isLoading } = trpc.writing.listSubmissions.useQuery(
     undefined,
     { enabled: isAuthenticated }
   );
@@ -89,7 +93,7 @@ export default function SubmissionHistory() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <CardTitle className="text-base">
-                            {new Date(submission.submittedAt).toLocaleDateString("zh-TW")}
+                            {new Date(submission.createdAt).toLocaleDateString("zh-TW")}
                           </CardTitle>
                           <span className="text-xs px-2 py-1 bg-accent/20 text-accent rounded">
                             評分: {submission.score}/100
@@ -141,7 +145,7 @@ export default function SubmissionHistory() {
                       <div className="text-center">
                         <p className="text-xs text-muted-foreground mb-1">提交時間</p>
                         <p className="text-xs">
-                          {new Date(submission.submittedAt).toLocaleTimeString("zh-TW")}
+                          {new Date(submission.createdAt).toLocaleTimeString("zh-TW")}
                         </p>
                       </div>
                     </div>

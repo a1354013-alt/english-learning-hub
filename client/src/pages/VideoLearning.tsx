@@ -7,15 +7,29 @@ import { BookOpen, ArrowLeft, Volume2, Plus } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
+// YouTube API type declaration
+declare namespace YT {
+  interface Player {
+    getCurrentTime(): number;
+    seekTo(seconds: number): void;
+    destroy(): void;
+    getPlayerState(): number;
+  }
+  interface PlayerConstructor {
+    new (element: HTMLElement, options: { height: string; width: string; videoId: string; events: { onStateChange: (event: { data: number }) => void } }): Player;
+  }
+  const Player: PlayerConstructor;
+  namespace PlayerState {
+    const PLAYING: number;
+    const PAUSED: number;
+    const ENDED: number;
+  }
+}
+
 interface Subtitle {
   start: number;  // Start time in seconds
   end: number;    // End time in seconds
   text: string;   // Subtitle text
-}
-
-interface VideoPlayerRef {
-  currentTime: number;
-  duration: number;
 }
 
 export default function VideoLearning() {
@@ -24,7 +38,7 @@ export default function VideoLearning() {
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [selectedWordDef, setSelectedWordDef] = useState<string | null>(null);
   const [selectedVideoId, setSelectedVideoId] = useState<number | null>(null);
-  const [lastLoggedTime, setLastLoggedTime] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
   const [lastCheckpointSecond, setLastCheckpointSecond] = useState(0);
   const [hasLoggedCompletion, setHasLoggedCompletion] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -107,7 +121,7 @@ export default function VideoLearning() {
 
   // Initialize YouTube Player API with ready callback
   useEffect(() => {
-    const w = window as any;
+    const w = window as typeof window & { YT?: typeof YT; onYouTubeIframeAPIReady?: () => void };
     if (!w.YT) {
       // Create a promise that resolves when YouTube API is ready
       if (!youtubeAPIPromiseRef.current) {
@@ -119,9 +133,13 @@ export default function VideoLearning() {
         });
       }
       
-      const tag = document.createElement('script');
-      tag.src = 'https://www.youtube.com/iframe_api';
-      document.body.appendChild(tag);
+      // Check if script already exists in DOM to avoid duplicates
+      const existingScript = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
+      if (!existingScript) {
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        document.body.appendChild(tag);
+      }
     } else {
       // YouTube API already loaded
       youtubeAPIReadyRef.current = true;
@@ -136,7 +154,7 @@ export default function VideoLearning() {
         youtubePlayerRef.current = null;
       }
       
-      const w = window as any;
+      const w = window as typeof window & { YT: typeof YT };
       let interval: NodeJS.Timeout | null = null;
       let isMounted = true;
       
@@ -152,15 +170,16 @@ export default function VideoLearning() {
         youtubePlayerRef.current = new w.YT.Player(youtubeContainerRef.current, {
           height: '100%',
           width: '100%',
-          videoId: videoDetails.youtubeId,
+          videoId: videoDetails.youtubeId || '',
           events: {
-            onStateChange: (event: any) => {
+            onStateChange: (event: { data: number }) => {
               if (event.data === w.YT.PlayerState.PLAYING) {
                 // Update current time every 100ms while playing
                 if (interval) clearInterval(interval);
                 interval = setInterval(() => {
-                  // Track current time internally for progress logging
-                  // No need to update state for every frame
+                  if (youtubePlayerRef.current) {
+                    setCurrentTime(youtubePlayerRef.current.getCurrentTime());
+                  }
                 }, 100);
               } else if (event.data === w.YT.PlayerState.PAUSED || event.data === w.YT.PlayerState.ENDED) {
                 // Clear interval when paused or ended
@@ -231,10 +250,19 @@ export default function VideoLearning() {
     );
   }
 
-  // Parse transcript from JSON
-  const subtitles: Subtitle[] = videoDetails?.transcript
-    ? (Array.isArray(videoDetails.transcript) ? videoDetails.transcript : JSON.parse(videoDetails.transcript as string))
-    : [];
+  // Parse transcript from JSON with error handling
+  const safeParseJSON = (data: any): Subtitle[] => {
+    try {
+      if (Array.isArray(data)) return data;
+      if (typeof data === 'string') return JSON.parse(data);
+      return [];
+    } catch (error) {
+      console.error('Failed to parse transcript:', error);
+      return [];
+    }
+  };
+
+  const subtitles: Subtitle[] = videoDetails?.transcript ? safeParseJSON(videoDetails.transcript) : [];
 
   // Find current subtitle based on video time (using proper start/end times)
   const currentSubtitle = subtitles.find(
@@ -289,8 +317,8 @@ export default function VideoLearning() {
                         width="100%"
                         height="100%"
                         controls
-                        onTimeUpdate={() => {
-                          // Track time update for progress logging
+                        onTimeUpdate={(e) => {
+                          setCurrentTime(e.currentTarget.currentTime);
                         }}
                       >
                         <source src={videoDetails.url} type="video/mp4" />

@@ -6,116 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, ArrowLeft, Plus } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-
-// ============ Strict Type Definitions ============
-
-interface VocabularyItem {
-  word: string;
-  definition: string;
-  usage: string;
-}
-
-interface PhraseItem {
-  phrase?: string;
-  definition?: string;
-  usage?: string;
-}
-
-interface SentenceItem {
-  sentence?: string;
-  definition?: string;
-  usage?: string;
-}
-
-interface ReadingMaterialData {
-  phrase?: PhraseItem;
-  sentence?: SentenceItem;
-}
-
-interface GrammarItem {
-  topic: string;
-  explanation: string;
-  example: string;
-}
-
-interface Exercise {
-  type: string;
-  question: string;
-  options: string[];
-  answer: string;
-}
-
-interface GeneratedContentData {
-  id?: number;
-  generatedDate: string;
-  proficiencyLevel: "junior_high" | "senior_high" | "college" | "advanced";
-  vocabulary?: VocabularyItem[];
-  grammar?: GrammarItem[];
-  readingMaterial?: ReadingMaterialData;
-  exercises?: Exercise[];
-  isArchived?: boolean;
-}
-
-interface ContentItem {
-  id?: number;
-  contentType: "vocabulary" | "phrase" | "sentence";
-  content: string;
-  definition: string;
-  exampleUsage: string;
-  proficiencyLevel: string;
-}
-
-// ============ Pure Function: Transform Generated Content ============
-
-/**
- * Transform backend GeneratedContent to frontend ContentItem format
- * Strict typing with no 'any' casts
- */
-function transformGeneratedContent(data: GeneratedContentData | GeneratedContentData[]): ContentItem[] {
-  const items = Array.isArray(data) ? data : [data];
-  const result: ContentItem[] = [];
-
-  items.forEach((item) => {
-    // Add vocabulary items
-    if (item.vocabulary && Array.isArray(item.vocabulary)) {
-      item.vocabulary.forEach((vocab: VocabularyItem) => {
-        result.push({
-          contentType: "vocabulary",
-          content: vocab.word,
-          definition: vocab.definition,
-          exampleUsage: vocab.usage,
-          proficiencyLevel: item.proficiencyLevel,
-        });
-      });
-    }
-
-    // Add phrase items
-    if (item.readingMaterial?.phrase) {
-      const phraseObj = item.readingMaterial.phrase;
-      result.push({
-        contentType: "phrase",
-        content: phraseObj.phrase || "",
-        definition: phraseObj.definition || "",
-        exampleUsage: phraseObj.usage || "",
-        proficiencyLevel: item.proficiencyLevel,
-      });
-    }
-
-    // Add sentence items
-    if (item.readingMaterial?.sentence) {
-      const sentenceObj = item.readingMaterial.sentence;
-      result.push({
-        contentType: "sentence",
-        content: sentenceObj.sentence || "",
-        definition: sentenceObj.definition || "",
-        exampleUsage: sentenceObj.usage || "",
-        proficiencyLevel: item.proficiencyLevel,
-      });
-    }
-  });
-
-  return result;
-}
+import { transformGeneratedContent, GeneratedContentData } from "@/utils/contentTransform";
 
 // ============ Component ============
 
@@ -124,7 +15,7 @@ type ContentState = "loading" | "empty" | "content";
 export default function DailyContent() {
   const { isAuthenticated, user } = useAuth();
   const [, setLocation] = useLocation();
-  const [contentItems, setContentItems] = useState<ContentItem[]>([]);
+  const [contentData, setContentData] = useState<GeneratedContentData | null>(null);
   const [contentState, setContentState] = useState<ContentState>("loading");
 
   // Fetch learning path to get proficiency level
@@ -142,8 +33,8 @@ export default function DailyContent() {
   const generateMutation = trpc.content.generateToday.useMutation({
     onSuccess: (result) => {
       if (result.success && result.data) {
-        const transformed = transformGeneratedContent(result.data as GeneratedContentData);
-        setContentItems(transformed);
+        const transformed = transformGeneratedContent(result.data);
+        setContentData(transformed);
         setContentState("content");
         toast.success("Content generated successfully!");
       }
@@ -171,28 +62,15 @@ export default function DailyContent() {
     }
 
     if (getTodayQuery.data && getTodayQuery.data.length > 0) {
-      // Use existing content
-      const transformed = transformGeneratedContent(getTodayQuery.data as GeneratedContentData[]);
-      setContentItems(transformed);
+      // Use existing content - transform first item
+      const transformed = transformGeneratedContent(getTodayQuery.data[0]);
+      setContentData(transformed);
       setContentState("content");
     } else if (getTodayQuery.isSuccess && getTodayQuery.data?.length === 0) {
       // No content for today, show empty state
       setContentState("empty");
     }
   }, [getTodayQuery.data, getTodayQuery.isSuccess, getTodayQuery.isLoading]);
-
-  const handleAddToCards = (item: ContentItem) => {
-    if (item.contentType === "vocabulary") {
-      addToCardsMutation.mutate({
-        frontText: item.content,
-        backText: item.definition,
-        exampleSentence: item.exampleUsage,
-        proficiencyLevel: item.proficiencyLevel as "junior_high" | "senior_high" | "college" | "advanced",
-      });
-    } else {
-      toast.error("Only vocabulary items can be added to flashcards.");
-    }
-  };
 
   if (!isAuthenticated) {
     return (
@@ -257,54 +135,96 @@ export default function DailyContent() {
               </Button>
             </CardContent>
           </Card>
-        ) : (
+        ) : contentData ? (
           // Content Display
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {contentItems.map((item, idx) => (
-              <Card key={idx} className="flex flex-col">
+          <div className="space-y-6">
+            {/* Vocabulary Section */}
+            {contentData.vocabulary && contentData.vocabulary.length > 0 && (
+              <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm">
-                      {item.contentType === "vocabulary"
-                        ? "Vocabulary"
-                        : item.contentType === "phrase"
-                          ? "Phrase"
-                          : "Sentence"}
-                    </CardTitle>
-                    <span className="text-xs px-2 py-1 bg-accent/20 text-accent rounded">
-                      {item.proficiencyLevel === "junior_high"
-                        ? "國中"
-                        : item.proficiencyLevel === "senior_high"
-                          ? "高中"
-                          : item.proficiencyLevel === "college"
-                            ? "大學"
-                            : "進階"}
-                    </span>
-                  </div>
+                  <CardTitle>📚 Vocabulary</CardTitle>
                 </CardHeader>
-                <CardContent className="flex-1 space-y-4">
-                  <div>
-                    <p className="text-lg font-bold mb-2">{item.content}</p>
-                    <p className="text-sm text-muted-foreground">{item.definition}</p>
-                  </div>
-                  <div className="bg-muted p-3 rounded text-sm">
-                    <p className="italic text-muted-foreground">{item.exampleUsage}</p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAddToCards(item)}
-                    disabled={addToCardsMutation.isPending}
-                    className="w-full"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add to Cards
-                  </Button>
+                <CardContent className="space-y-4">
+                  {contentData.vocabulary.map((item, idx) => (
+                    <div key={idx} className="border-l-4 border-accent pl-4 py-2">
+                      <p className="font-semibold text-lg">{item.word}</p>
+                      <p className="text-sm text-muted-foreground">{item.definition}</p>
+                      <p className="text-sm italic mt-2">例：{item.usage}</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-2"
+                        onClick={() => {
+                          addToCardsMutation.mutate({
+                            frontText: item.word,
+                            backText: item.definition,
+                            exampleSentence: item.usage,
+                            proficiencyLevel: "junior_high",
+                          });
+                        }}
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Add to Cards
+                      </Button>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
-            ))}
+            )}
+
+            {/* Phrase Section */}
+            {contentData.phrases && contentData.phrases.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>💬 Phrases</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {contentData.phrases.map((item, idx) => (
+                    <div key={idx} className="border-l-4 border-blue-500 pl-4 py-2">
+                      <p className="font-semibold text-lg">{item.phrase}</p>
+                      <p className="text-sm text-muted-foreground">{item.definition}</p>
+                      <p className="text-sm italic mt-2">例：{item.usage}</p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Sentence Section */}
+            {contentData.sentences && contentData.sentences.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>✍️ Sentences</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {contentData.sentences.map((item, idx) => (
+                    <div key={idx} className="border-l-4 border-green-500 pl-4 py-2">
+                      <p className="font-semibold text-lg">{item.sentence}</p>
+                      <p className="text-sm text-muted-foreground">{item.definition}</p>
+                      <p className="text-sm italic mt-2">例：{item.usage}</p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Grammar Section */}
+            {contentData.grammar && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>🎓 Grammar</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <p className="font-semibold">{contentData.grammar.topic}</p>
+                    <p className="text-sm text-muted-foreground mt-2">{contentData.grammar.explanation}</p>
+                    <p className="text-sm italic mt-2">例：{contentData.grammar.example}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
