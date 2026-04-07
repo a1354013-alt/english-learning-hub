@@ -23,6 +23,7 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
   
   useEffect(() => {
     if (!loading && !isAuthenticated) {
+      // Redirect to OAuth login portal
       window.location.href = getLoginUrl();
     }
   }, [isAuthenticated, loading]);
@@ -35,7 +36,11 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
     );
   }
   
-  return isAuthenticated ? <>{children}</> : null;
+  if (!isAuthenticated) {
+    return null;
+  }
+  
+  return <>{children}</>;
 }
 
 function Router() {

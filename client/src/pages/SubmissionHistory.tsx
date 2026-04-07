@@ -1,15 +1,12 @@
-
+import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { useLocation } from "wouter";
-import { useState } from "react";
 
-// Use tRPC inferred type from writing.listSubmissions query
-// Inferred from server/routers.ts listSubmissions return type
-type SubmissionItem = {
+interface SubmissionItem {
   id: number;
   userId: number;
   challengeId: number;
@@ -20,7 +17,7 @@ type SubmissionItem = {
   xpEarned: number;
   createdAt: Date;
   updatedAt: Date;
-};
+}
 
 export default function SubmissionHistory() {
   const { isAuthenticated } = useAuth();
@@ -82,7 +79,7 @@ export default function SubmissionHistory() {
           </Card>
         ) : (
           <div className="space-y-4">
-            {submissions.map((submission) => (
+            {submissions.map((submission: SubmissionItem) => (
               <Card key={submission.id} className="overflow-hidden">
                 <div
                   className="cursor-pointer hover:bg-muted/50 transition-colors"

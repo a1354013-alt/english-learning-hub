@@ -215,7 +215,7 @@ export async function archiveOldContent() {
       )
     );
 
-  const updatedCount = (result as { rowsAffected?: number }).rowsAffected || 0;
+  const updatedCount = (result as any).rowsAffected || 0;
   console.log(`[ContentGeneration] Archived ${updatedCount} old content items`);
   return updatedCount;
 }

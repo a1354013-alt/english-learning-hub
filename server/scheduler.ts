@@ -11,19 +11,6 @@ import { eq } from "drizzle-orm";
  * Uses database to track execution state for multi-instance deployments
  */
 
-/**
- * Type for scheduler state items from database
- */
-interface StateItem {
-  id: number;
-  taskName: string;
-  lastExecutedAt: Date;
-  nextScheduledAt: Date | null;
-  status: "pending" | "running" | "completed" | "failed";
-  errorMessage: string | null;
-  updatedAt: Date;
-}
-
 const PROFICIENCY_LEVELS = [
   "junior_high",
   "senior_high",
@@ -65,7 +52,7 @@ async function checkAndGenerateContent() {
 
     try {
       // Get current state from DB
-        const state: StateItem[] = await db
+      const state = await db
         .select()
         .from(schedulerState)
         .where(eq(schedulerState.taskName, taskName))
@@ -164,7 +151,7 @@ async function checkAndArchiveContent() {
 
   try {
     // Get current state from DB
-    const state: StateItem[] = await db
+    const state = await db
       .select()
       .from(schedulerState)
       .where(eq(schedulerState.taskName, taskName))
@@ -295,23 +282,23 @@ export async function getSchedulerStatus() {
     };
   }
 
-  const states: StateItem[] = await db.select().from(schedulerState);
+  const states = await db.select().from(schedulerState);
   return {
     states,
     nextContentGenerationTimes: Object.fromEntries(
       PROFICIENCY_LEVELS.map((level) => {
         const taskName = `content_generation_${level}`;
-        const state = states.find((s: StateItem) => s.taskName === taskName);
+        const state = states.find((s: any) => s.taskName === taskName);
         const nextGen = state?.nextScheduledAt
           ? new Date(state.nextScheduledAt).toISOString()
           : "Pending";
         return [level, nextGen];
       })
     ),
-    nextArchiveTime: states.find((s: StateItem) => s.taskName === "archive_old_content")
+    nextArchiveTime: states.find((s: any) => s.taskName === "archive_old_content")
       ?.nextScheduledAt
       ? new Date(
-          states.find((s: StateItem) => s.taskName === "archive_old_content")!
+          states.find((s: any) => s.taskName === "archive_old_content")!
             .nextScheduledAt!
         ).toISOString()
       : "Pending",

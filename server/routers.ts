@@ -14,8 +14,6 @@ import {
   getGeneratedContent,
   archiveGeneratedContent,
   getDb,
-  getInsertId,
-  type InsertResult,
 } from "./db";
 import { TRPCError } from "@trpc/server";
 import { generateDailyContent, archiveOldContent } from "./contentGeneration";
@@ -145,7 +143,7 @@ export const appRouter = router({
                 createdAt: new Date(),
                 updatedAt: new Date(),
               });
-              deckId = getInsertId(insertResult);
+              deckId = (insertResult as any).insertId as number;
             } catch (insertError) {
               const retryDecks = await db
                 .select()
@@ -190,7 +188,7 @@ export const appRouter = router({
             .where(eq(decks.id, deckId));
           return {
             success: true,
-            data: { deckId, cardId: getInsertId(cardResult) },
+            data: { deckId, cardId: (cardResult as any).insertId },
           };
         } catch (error) {
           const requestId = ctx.req.requestId || "unknown";
@@ -488,24 +486,19 @@ export const appRouter = router({
               description: "Imported from AI course: " + courseData.title,
               proficiencyLevel: courseData.proficiencyLevel,
             });
-            deckId = getInsertId(deckResult);
+            deckId = (deckResult as any).insertId as number;
           }
           
           // vocabulary is already an array from Drizzle
-          interface VocabularyItem {
-            word: string;
-            definition: string;
-            chineseTranslation: string;
-          }
           const vocabulary = Array.isArray(courseData.vocabulary) ? courseData.vocabulary : [];
-          const cardInserts = vocabulary.map((vocab: VocabularyItem) => ({
+          const cardInserts = vocabulary.map((vocab: any) => ({
             userId: ctx.user.id,
             deckId,
             frontText: vocab.word,
             backText: vocab.definition + "\n" + vocab.chineseTranslation,
             proficiencyLevel: courseData.proficiencyLevel,
             repetitionCount: 0,
-            easinessFactor: "2.50",
+            easinessFactor: "2.50" as any,
             interval: 1,
             nextReviewAt: new Date(),
           }));
@@ -825,7 +818,7 @@ export const appRouter = router({
         
         return {
           success: true,
-          submissionId: getInsertId(result),
+          submissionId: (result as any).insertId,
           score,
           xpEarned,
           feedback: feedback.feedback,

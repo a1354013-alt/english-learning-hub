@@ -28,8 +28,7 @@ export default function AICourseGenerator() {
     onSuccess: () => {
       toast.success("課程生成成功！");
       setTopic("");
-      // Navigate to my courses immediately after successful generation
-      setLocation("/my-courses");
+      setTimeout(() => setLocation("/my-courses"), 1000);
     },
     onError: (error) => {
       toast.error(error.message || "課程生成失敗");

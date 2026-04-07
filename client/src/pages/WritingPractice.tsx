@@ -56,8 +56,10 @@ export default function WritingPractice() {
       setContent("");
       setHasChecked(false);
       setCheckResult(null);
-      // Navigate to submission history immediately after successful submit
-      setLocation("/submission-history");
+      // Navigate to submission history after successful submit
+      setTimeout(() => {
+        setLocation("/submission-history");
+      }, 500);
     },
     onError: (error) => {
       toast.error(error.message || "提交失敗");

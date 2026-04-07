@@ -15,10 +15,6 @@ declare namespace YT {
     destroy(): void;
     getPlayerState(): number;
   }
-  interface PlayerConstructor {
-    new (element: HTMLElement, options: { height: string; width: string; videoId: string; events: { onStateChange: (event: { data: number }) => void } }): Player;
-  }
-  const Player: PlayerConstructor;
   namespace PlayerState {
     const PLAYING: number;
     const PAUSED: number;
@@ -94,11 +90,11 @@ export default function VideoLearning() {
   const addToCards = async () => {
     if (selectedWord && selectedWordDef && videoDetails) {
       // Use video proficiency level as proficiency level
-      // videoDetails.proficiencyLevel is already properly typed from tRPC query
+      const proficiencyLevel = videoDetails.proficiencyLevel as "junior_high" | "senior_high" | "college" | "advanced";
       addToCardsMutation.mutate({
         frontText: selectedWord,
         backText: selectedWordDef,
-        proficiencyLevel: videoDetails.proficiencyLevel,
+        proficiencyLevel,
       });
     }
   };
@@ -121,7 +117,7 @@ export default function VideoLearning() {
 
   // Initialize YouTube Player API with ready callback
   useEffect(() => {
-    const w = window as typeof window & { YT?: typeof YT; onYouTubeIframeAPIReady?: () => void };
+    const w = window as any;
     if (!w.YT) {
       // Create a promise that resolves when YouTube API is ready
       if (!youtubeAPIPromiseRef.current) {
@@ -154,7 +150,7 @@ export default function VideoLearning() {
         youtubePlayerRef.current = null;
       }
       
-      const w = window as typeof window & { YT: typeof YT };
+      const w = window as any;
       let interval: NodeJS.Timeout | null = null;
       let isMounted = true;
       
@@ -170,9 +166,9 @@ export default function VideoLearning() {
         youtubePlayerRef.current = new w.YT.Player(youtubeContainerRef.current, {
           height: '100%',
           width: '100%',
-          videoId: videoDetails.youtubeId || '',
+          videoId: videoDetails.youtubeId,
           events: {
-            onStateChange: (event: { data: number }) => {
+            onStateChange: (event: any) => {
               if (event.data === w.YT.PlayerState.PLAYING) {
                 // Update current time every 100ms while playing
                 if (interval) clearInterval(interval);
@@ -251,10 +247,10 @@ export default function VideoLearning() {
   }
 
   // Parse transcript from JSON with error handling
-  const safeParseJSON = (data: unknown): Subtitle[] => {
+  const safeParseJSON = (data: any): Subtitle[] => {
     try {
-      if (Array.isArray(data)) return data as Subtitle[];
-      if (typeof data === 'string') return JSON.parse(data) as Subtitle[];
+      if (Array.isArray(data)) return data;
+      if (typeof data === 'string') return JSON.parse(data);
       return [];
     } catch (error) {
       console.error('Failed to parse transcript:', error);

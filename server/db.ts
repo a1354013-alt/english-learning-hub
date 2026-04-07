@@ -28,18 +28,6 @@ export interface InsertResult {
 }
 
 /**
- * Extract insertId from database insert result
- * Provides unified type-safe handling of insert ID extraction
- */
-export function getInsertId(result: unknown): number {
-  const insertId = (result as { insertId?: number }).insertId;
-  if (!insertId) {
-    throw new Error("Failed to get insert ID from database result");
-  }
-  return insertId;
-}
-
-/**
  * Convert Date to YYYY-MM-DD string format (using Taipei timezone)
  * Avoids timezone crossing issues (e.g., 00:xx-07:xx UTC becomes yesterday in UTC)
  */
@@ -618,7 +606,7 @@ export async function saveAiCourse(
   course: {
     title: string;
     topic?: string;
-    proficiencyLevel: "junior_high" | "senior_high" | "college" | "advanced";
+    proficiencyLevel: string;
     content: AiCourseContent;
   }
 ) {
@@ -631,7 +619,7 @@ export async function saveAiCourse(
     userId,
     title: course.title,
     topic: course.topic,
-    proficiencyLevel: course.proficiencyLevel,
+    proficiencyLevel: course.proficiencyLevel as "junior_high" | "senior_high" | "college" | "advanced",
     vocabulary: course.content.vocabulary || [],
     grammar: course.content.grammar || {},
     readingMaterial: course.content.readingMaterial || {},
@@ -640,7 +628,7 @@ export async function saveAiCourse(
     isCompleted: false,
   });
 
-  return { success: true, courseId: getInsertId(result) };
+  return { success: true, courseId: (result as unknown as InsertResult).insertId };
 }
 
 /**
@@ -674,7 +662,7 @@ export async function getAiCourses(
     grammar: typeof course.grammar === 'object' && course.grammar !== null ? (course.grammar as Record<string, unknown>) : {},
     readingMaterial: typeof course.readingMaterial === 'object' && course.readingMaterial !== null ? (course.readingMaterial as Record<string, unknown>) : {},
     exercises: Array.isArray(course.exercises) ? (course.exercises as unknown[]) : [],
-  }));
+  })) as unknown as typeof courses;
 }
 
 /**
