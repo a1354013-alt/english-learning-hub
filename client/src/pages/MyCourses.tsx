@@ -1,16 +1,15 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  ArrowLeft,
   BookOpen,
-  Trash2,
+  Download,
   Eye,
   Star,
-  ArrowLeft,
-
-  Download,
+  Trash2,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -18,15 +17,12 @@ import { toast } from "sonner";
 interface VocabularyItem {
   word: string;
   definition: string;
-  chineseTranslation: string;
+  chineseTranslation?: string;
   pronunciation?: string;
-  example?: string;
-  usage?: string;
 }
 
 interface GrammarContent {
   title?: string;
-  topic?: string;
   explanation: string;
   examples?: string[];
 }
@@ -38,10 +34,8 @@ interface ReadingMaterial {
 }
 
 interface Exercise {
-  type?: string;
   question: string;
-  options: string[];
-  correctAnswer?: number;
+  options?: string[];
   answer?: string;
   explanation?: string;
 }
@@ -54,14 +48,21 @@ interface AiCourse {
   title: string;
   topic?: string;
   proficiencyLevel: ProficiencyLevel;
-  generatedAt: string;
+  generatedAt: string | Date;
   isCompleted: boolean;
-  rating?: number;
+  rating?: number | null;
   vocabulary?: VocabularyItem[];
   grammar?: GrammarContent;
   readingMaterial?: ReadingMaterial;
   exercises?: Exercise[];
 }
+
+const levelLabels: Record<ProficiencyLevel, string> = {
+  junior_high: "Junior High",
+  senior_high: "Senior High",
+  college: "College",
+  advanced: "Advanced",
+};
 
 export default function MyCourses() {
   const { isAuthenticated } = useAuth();
@@ -71,56 +72,55 @@ export default function MyCourses() {
   const [showDetails, setShowDetails] = useState(false);
   const utils = trpc.useUtils();
 
-  // Fetch courses
   const { data: coursesList, isLoading } = trpc.aiCourse.list.useQuery(
     { limit: 50, offset: 0 },
     { enabled: isAuthenticated }
   );
 
-  // Delete course mutation
+  const refreshCourses = async () => {
+    await utils.aiCourse.list.invalidate();
+  };
+
   const deleteMutation = trpc.aiCourse.delete.useMutation({
-    onSuccess: () => {
-      toast.success("課程已刪除");
-      utils.aiCourse.list.invalidate();
+    onSuccess: async () => {
+      toast.success("Course deleted.");
       setSelectedCourse(null);
+      setShowDetails(false);
+      await refreshCourses();
     },
     onError: (error) => {
-      toast.error(error.message || "刪除失敗");
+      toast.error(error.message || "Failed to delete the course.");
     },
   });
 
-  // Mark completed mutation
   const completeMutation = trpc.aiCourse.markCompleted.useMutation({
-    onSuccess: () => {
-      toast.success("課程已標記為完成");
-      utils.aiCourse.list.invalidate();
+    onSuccess: async () => {
+      toast.success("Course marked as completed.");
+      await refreshCourses();
     },
     onError: (error) => {
-      toast.error(error.message || "標記失敗");
+      toast.error(error.message || "Failed to update completion status.");
     },
   });
 
-  // Rate course mutation
   const rateMutation = trpc.aiCourse.rate.useMutation({
-    onSuccess: () => {
-      toast.success("評分已保存");
-      utils.aiCourse.list.invalidate();
+    onSuccess: async () => {
+      toast.success("Rating saved.");
+      await refreshCourses();
     },
     onError: (error) => {
-      toast.error(error.message || "評分失敗");
+      toast.error(error.message || "Failed to save rating.");
     },
   });
 
-
-  // Import to SRS mutation
   const importSRSMutation = trpc.aiCourse.importToSRS.useMutation({
-    onSuccess: (result) => {
-      toast.success(`已導入 ${result.cardsImported} 個詞彙到 SRS`);
-      utils.aiCourse.list.invalidate();
+    onSuccess: async (result) => {
+      toast.success(`Imported ${result.cardsImported} cards into SRS.`);
+      await refreshCourses();
       setShowDetails(false);
     },
     onError: (error) => {
-      toast.error(error.message || "導入失敗");
+      toast.error(error.message || "Failed to import the course into SRS.");
     },
   });
 
@@ -132,32 +132,32 @@ export default function MyCourses() {
 
   if (!isAuthenticated) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>請先登入</p>
+      <div className="flex min-h-screen items-center justify-center">
+        <p>Please sign in first.</p>
       </div>
     );
   }
 
+  const renderRating = (rating?: number | null) =>
+    rating ? "★".repeat(rating) : "Not rated";
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="border-b border-border sticky top-0 z-50 bg-background/80 backdrop-blur-sm">
-        <div className="container flex items-center justify-between h-16">
+      <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-sm">
+        <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-accent" />
-            <span className="text-lg font-bold">我的課程</span>
+            <BookOpen className="h-6 w-6 text-accent" />
+            <span className="text-lg font-bold">My AI courses</span>
           </div>
           <Button variant="outline" size="sm" onClick={() => setLocation("/")}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            返回首頁
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to home
           </Button>
         </div>
       </nav>
 
-      {/* Main Content */}
       <div className="container py-8">
         {showDetails && selectedCourse ? (
-          // Course Details View
           <div className="space-y-6">
             <Button
               variant="outline"
@@ -166,8 +166,8 @@ export default function MyCourses() {
                 setSelectedCourse(null);
               }}
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              返回列表
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to courses
             </Button>
 
             <Card>
@@ -175,128 +175,123 @@ export default function MyCourses() {
                 <CardTitle>{selectedCourse.title}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Course Metadata */}
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <p className="text-sm text-muted-foreground">主題</p>
-                    <p className="font-medium">{selectedCourse.topic || "未指定"}</p>
+                    <p className="text-sm text-muted-foreground">Topic</p>
+                    <p className="font-medium">{selectedCourse.topic || "General English"}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">程度</p>
+                    <p className="text-sm text-muted-foreground">Level</p>
+                    <p className="font-medium">{levelLabels[selectedCourse.proficiencyLevel]}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Generated at</p>
                     <p className="font-medium">
-                      {selectedCourse.proficiencyLevel === "junior_high"
-                        ? "國中程度"
-                        : selectedCourse.proficiencyLevel === "senior_high"
-                          ? "高中程度"
-                          : selectedCourse.proficiencyLevel === "college"
-                            ? "大學程度"
-                            : "進階程度"}
+                      {new Date(selectedCourse.generatedAt).toLocaleString("en-US")}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">生成時間</p>
+                    <p className="text-sm text-muted-foreground">Status</p>
                     <p className="font-medium">
-                      {new Date(selectedCourse.generatedAt).toLocaleString("zh-TW")}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">狀態</p>
-                    <p className="font-medium">
-                      {selectedCourse.isCompleted ? "✓ 已完成" : "進行中"}
+                      {selectedCourse.isCompleted ? "Completed" : "In progress"}
                     </p>
                   </div>
                 </div>
 
-                {/* Vocabulary */}
-                {selectedCourse.vocabulary && selectedCourse.vocabulary.length > 0 && (
+                {selectedCourse.vocabulary?.length ? (
                   <div className="space-y-3">
-                    <h3 className="font-bold text-lg">詞彙</h3>
-                    <div className="grid md:grid-cols-2 gap-3">
-                      {selectedCourse.vocabulary?.map((vocab: VocabularyItem, idx: number) => (
-                        <div key={idx} className="border border-border rounded-lg p-3">
+                    <h3 className="text-lg font-bold">Vocabulary</h3>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {selectedCourse.vocabulary.map((vocab) => (
+                        <div
+                          key={`${vocab.word}-${vocab.definition}`}
+                          className="rounded-lg border border-border p-3"
+                        >
                           <p className="font-bold">{vocab.word}</p>
-                          <p className="text-sm text-muted-foreground italic">
-                            /{vocab.pronunciation}/
-                          </p>
-                          <p className="text-sm mt-1">{vocab.definition}</p>
-                          <p className="text-xs text-accent mt-1">
-                            {vocab.chineseTranslation}
-                          </p>
+                          {vocab.pronunciation ? (
+                            <p className="text-sm italic text-muted-foreground">
+                              /{vocab.pronunciation}/
+                            </p>
+                          ) : null}
+                          <p className="mt-1 text-sm">{vocab.definition}</p>
+                          {vocab.chineseTranslation ? (
+                            <p className="mt-1 text-xs text-accent">
+                              {vocab.chineseTranslation}
+                            </p>
+                          ) : null}
                         </div>
                       ))}
                     </div>
                   </div>
-                )}
+                ) : null}
 
-                {/* Grammar */}
-                {selectedCourse.grammar && (
+                {selectedCourse.grammar ? (
                   <div className="space-y-2">
-                    <h3 className="font-bold text-lg">文法</h3>
-                    <p className="font-medium">{selectedCourse.grammar.title}</p>
+                    <h3 className="text-lg font-bold">Grammar</h3>
+                    <p className="font-medium">{selectedCourse.grammar.title || "Grammar focus"}</p>
                     <p className="text-sm">{selectedCourse.grammar.explanation}</p>
+                    {selectedCourse.grammar.examples?.length ? (
+                      <ul className="list-inside list-disc text-sm text-muted-foreground">
+                        {selectedCourse.grammar.examples.map((example) => (
+                          <li key={example}>{example}</li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
-                )}
+                ) : null}
 
-                {/* Reading Material */}
-                {selectedCourse.readingMaterial && (
+                {selectedCourse.readingMaterial ? (
                   <div className="space-y-2">
-                    <h3 className="font-bold text-lg">閱讀材料</h3>
+                    <h3 className="text-lg font-bold">Reading material</h3>
                     <p className="font-medium">{selectedCourse.readingMaterial.title}</p>
-                    <p className="text-sm whitespace-pre-wrap">
+                    <p className="whitespace-pre-wrap text-sm">
                       {selectedCourse.readingMaterial.content}
                     </p>
                   </div>
-                )}
+                ) : null}
 
-                {/* Exercises */}
-                {selectedCourse.exercises && selectedCourse.exercises.length > 0 && (
+                {selectedCourse.exercises?.length ? (
                   <div className="space-y-3">
-                    <h3 className="font-bold text-lg">練習題</h3>
-                    {selectedCourse.exercises?.map((exercise: Exercise, idx: number) => (
-                      <div key={idx} className="border border-border rounded-lg p-3">
+                    <h3 className="text-lg font-bold">Exercises</h3>
+                    {selectedCourse.exercises.map((exercise, index) => (
+                      <div key={`${exercise.question}-${index}`} className="rounded-lg border border-border p-3">
                         <p className="font-medium">{exercise.question}</p>
-                        {exercise.options && (
+                        {exercise.options?.length ? (
                           <div className="mt-2 space-y-1">
-                            {exercise.options.map((option: string, optIdx: number) => (
-                              <p
-                                key={optIdx}
-                                className={`text-sm ${
-                                  exercise.answer && option.startsWith(exercise.answer)
-                                    ? "text-green-600 font-medium"
-                                    : ""
-                                }`}
-                              >
+                            {exercise.options.map((option) => (
+                              <p key={option} className="text-sm">
                                 {option}
                               </p>
                             ))}
                           </div>
-                        )}
+                        ) : null}
+                        {exercise.answer ? (
+                          <p className="mt-2 text-sm text-green-600">Answer: {exercise.answer}</p>
+                        ) : null}
+                        {exercise.explanation ? (
+                          <p className="text-sm text-muted-foreground">
+                            {exercise.explanation}
+                          </p>
+                        ) : null}
                       </div>
                     ))}
                   </div>
-                )}
+                ) : null}
 
-                {/* Rating */}
                 <div className="space-y-2 border-t border-border pt-4">
-                  <p className="font-medium">評分</p>
+                  <p className="font-medium">Rate this course</p>
                   <div className="flex gap-2">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         key={star}
-                        onClick={() => {
-                          rateMutation.mutate({
-                            courseId: selectedCourse.id,
-                            rating: star,
-                          });
-                          setSelectedCourse({
-                            ...selectedCourse,
-                            rating: star,
-                          });
-                        }}
                         className="transition-transform hover:scale-110"
+                        onClick={() => {
+                          rateMutation.mutate({ courseId: selectedCourse.id, rating: star });
+                          setSelectedCourse({ ...selectedCourse, rating: star });
+                        }}
                       >
                         <Star
-                          className={`w-6 h-6 ${
+                          className={`h-6 w-6 ${
                             star <= (selectedCourse.rating || 0)
                               ? "fill-yellow-400 text-yellow-400"
                               : "text-gray-300"
@@ -307,144 +302,107 @@ export default function MyCourses() {
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-2 border-t border-border pt-4">
-                  {!selectedCourse.isCompleted && (
+                <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+                  {!selectedCourse.isCompleted ? (
                     <Button
-                      onClick={() =>
-                        completeMutation.mutate({
-                          courseId: selectedCourse.id,
-                        })
-                      }
                       disabled={completeMutation.isPending}
+                      onClick={() => completeMutation.mutate({ courseId: selectedCourse.id })}
                     >
-                      標記為完成
+                      Mark as completed
                     </Button>
-                  )}
+                  ) : null}
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      if (!selectedCourse?.vocabulary || selectedCourse.vocabulary.length === 0) {
-                        toast.error("此課程沒有詞彙可導入");
-                        return;
-                      }
-                      
-                      importSRSMutation.mutate({
-                        courseId: selectedCourse.id,
-                      });
-                    }}
                     disabled={importSRSMutation.isPending}
+                    onClick={() => importSRSMutation.mutate({ courseId: selectedCourse.id })}
                   >
-                    <Download className="w-4 h-4 mr-2" />
-                    {importSRSMutation.isPending ? "導入中..." : "導入 SRS"}
+                    <Download className="mr-2 h-4 w-4" />
+                    {importSRSMutation.isPending ? "Importing..." : "Import to SRS"}
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() =>
-                      deleteMutation.mutate({
-                        courseId: selectedCourse.id,
-                      })
-                    }
                     disabled={deleteMutation.isPending}
+                    onClick={() => deleteMutation.mutate({ courseId: selectedCourse.id })}
                   >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    刪除課程
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete course
                   </Button>
                 </div>
               </CardContent>
             </Card>
           </div>
         ) : (
-          // Courses List View
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">已生成的課程</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Saved AI courses</h2>
               <Button asChild>
-                <a href="/ai-course">生成新課程</a>
+                <a href="/ai-course">Generate new course</a>
               </Button>
             </div>
 
             {isLoading ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+                <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-accent" />
               </div>
             ) : courses.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
-                  <p className="text-muted-foreground mb-4">還沒有生成任何課程</p>
+                  <p className="mb-4 text-muted-foreground">
+                    You do not have any saved AI courses yet.
+                  </p>
                   <Button asChild>
-                    <a href="/ai-course">立即生成課程</a>
+                    <a href="/ai-course">Generate your first course</a>
                   </Button>
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {courses.map((course) => (
-                  <Card key={course.id} className="hover:shadow-lg transition-shadow">
+                  <Card key={course.id} className="transition-shadow hover:shadow-lg">
                     <CardHeader>
-                      <CardTitle className="text-lg line-clamp-2">
-                        {course.title}
-                      </CardTitle>
+                      <CardTitle className="line-clamp-2 text-lg">{course.title}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">程度:</span>
+                          <span className="text-muted-foreground">Level</span>
                           <span className="font-medium">
-                            {course.proficiencyLevel === "junior_high"
-                              ? "國中"
-                              : course.proficiencyLevel === "senior_high"
-                                ? "高中"
-                                : course.proficiencyLevel === "college"
-                                  ? "大學"
-                                  : "進階"}
+                            {levelLabels[course.proficiencyLevel]}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">生成時間:</span>
+                          <span className="text-muted-foreground">Generated</span>
                           <span className="font-medium">
-                            {new Date(course.generatedAt).toLocaleDateString(
-                              "zh-TW"
-                            )}
+                            {new Date(course.generatedAt).toLocaleDateString("en-US")}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">狀態:</span>
+                          <span className="text-muted-foreground">Status</span>
                           <span
                             className={`font-medium ${
-                              course.isCompleted
-                                ? "text-green-600"
-                                : "text-orange-600"
+                              course.isCompleted ? "text-green-600" : "text-orange-600"
                             }`}
                           >
-                            {course.isCompleted ? "✓ 已完成" : "進行中"}
+                            {course.isCompleted ? "Completed" : "In progress"}
                           </span>
                         </div>
-                        {course.rating && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">評分:</span>
-                            <span className="font-medium">
-                              {"⭐".repeat(course.rating)}
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Rating</span>
+                          <span className="font-medium">{renderRating(course.rating)}</span>
+                        </div>
                       </div>
 
-                      <div className="flex gap-2 pt-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedCourse(course);
-                            setShowDetails(true);
-                          }}
-                          className="flex-1"
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          查看
-                        </Button>
-
-                      </div>
+                      <Button
+                        className="w-full"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedCourse(course);
+                          setShowDetails(true);
+                        }}
+                      >
+                        <Eye className="mr-2 h-4 w-4" />
+                        View details
+                      </Button>
                     </CardContent>
                   </Card>
                 ))}

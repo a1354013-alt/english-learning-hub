@@ -10,25 +10,39 @@ interface ActivityHeatmapProps {
   title?: string;
 }
 
-export function ActivityHeatmap({ data, title = "學習活動熱力圖" }: ActivityHeatmapProps) {
-  // Generate last 12 weeks of dates
+function formatDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function ActivityHeatmap({
+  data,
+  title = "Study activity in the last 12 weeks",
+}: ActivityHeatmapProps) {
   const weeks = useMemo(() => {
-    const weeks: (HeatmapData | null)[][] = [];
+    const dateMap = new Map(data.map((entry) => [entry.date, entry.count]));
+    const result: HeatmapData[][] = [];
     const today = new Date();
 
-    for (let w = 0; w < 12; w++) {
-      const week: (HeatmapData | null)[] = [];
-      for (let d = 0; d < 7; d++) {
+    for (let weekIndex = 0; weekIndex < 12; weekIndex++) {
+      const week: HeatmapData[] = [];
+
+      for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
         const date = new Date(today);
-        date.setDate(date.getDate() - (w * 7 + d));
-        const dateStr = date.toISOString().split("T")[0];
-        const entry = data.find((d) => d.date === dateStr);
-        week.push(entry || { date: dateStr, count: 0 });
+        date.setDate(date.getDate() - (11 - weekIndex) * 7 - dayIndex);
+        const key = formatDateKey(date);
+        week.push({
+          date: key,
+          count: dateMap.get(key) ?? 0,
+        });
       }
-      weeks.unshift(week);
+
+      result.push(week.reverse());
     }
 
-    return weeks;
+    return result;
   }, [data]);
 
   const getColor = (count: number) => {
@@ -38,8 +52,6 @@ export function ActivityHeatmap({ data, title = "學習活動熱力圖" }: Activ
     if (count < 10) return "bg-green-500 dark:bg-green-600";
     return "bg-green-700 dark:bg-green-500";
   };
-
-  const maxCount = Math.max(...data.map((d) => d.count), 1);
 
   return (
     <div className="space-y-4">
@@ -51,8 +63,8 @@ export function ActivityHeatmap({ data, title = "學習活動熱力圖" }: Activ
               {week.map((day, dayIdx) => (
                 <div
                   key={`${weekIdx}-${dayIdx}`}
-                  className={`heatmap-cell ${getColor(day?.count || 0)}`}
-                  title={`${day?.date}: ${day?.count || 0} 次活動`}
+                  className={`heatmap-cell ${getColor(day.count)}`}
+                  title={`${day.date}: ${day.count} activities`}
                 />
               ))}
             </div>
@@ -60,9 +72,8 @@ export function ActivityHeatmap({ data, title = "學習活動熱力圖" }: Activ
         </div>
       </div>
 
-      {/* Legend */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span>少</span>
+        <span>Less</span>
         <div className="flex gap-1">
           <div className="heatmap-cell bg-gray-100 dark:bg-gray-800" />
           <div className="heatmap-cell bg-green-100 dark:bg-green-900" />
@@ -70,7 +81,7 @@ export function ActivityHeatmap({ data, title = "學習活動熱力圖" }: Activ
           <div className="heatmap-cell bg-green-500 dark:bg-green-600" />
           <div className="heatmap-cell bg-green-700 dark:bg-green-500" />
         </div>
-        <span>多</span>
+        <span>More</span>
       </div>
     </div>
   );

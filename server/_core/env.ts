@@ -1,104 +1,111 @@
 /**
- * Environment variable validation and configuration
- * All required environment variables must be present and valid at startup
- * Missing or invalid env vars will cause the server to fail immediately
+ * Environment variable validation and configuration.
+ * In test mode we provide deterministic defaults so unit tests can import
+ * modules without requiring a fully provisioned runtime environment.
  */
 
-function validateEnvironment(): void {
+type EnvironmentConfig = {
+  appId: string;
+  cookieSecret: string;
+  databaseUrl: string;
+  appOrigin: string;
+  oAuthServerUrl: string;
+  oAuthPortalUrl: string;
+  ownerOpenId: string;
+  ownerName: string;
+  forgeApiUrl: string;
+  forgeApiKey: string;
+  analyticsEndpoint: string;
+  analyticsWebsiteId: string;
+  isProduction: boolean;
+  isDevelopment: boolean;
+  isTest: boolean;
+};
+
+const isTestMode =
+  process.env.NODE_ENV === "test" || process.env.VITEST === "true";
+
+const TEST_DEFAULTS = {
+  JWT_SECRET: "test-jwt-secret-with-safe-minimum-length-32",
+  DATABASE_URL: "mysql://test:test@localhost:3306/english_learning_hub_test",
+  VITE_APP_ID: "test-app-id",
+  OAUTH_SERVER_URL: "https://api.example.test",
+  VITE_OAUTH_PORTAL_URL: "https://oauth.example.test",
+  APP_ORIGIN: "http://localhost:3000",
+} as const;
+
+function readEnv(key: keyof typeof TEST_DEFAULTS): string | undefined {
+  return process.env[key] ?? (isTestMode ? TEST_DEFAULTS[key] : undefined);
+}
+
+function validateEnvironment(): EnvironmentConfig {
   const errors: string[] = [];
-  const isTestMode = process.env.NODE_ENV === "test" || process.env.VITEST === "true";
 
-  // Required environment variables that must always be present
-  const requiredEnvs = {
-    JWT_SECRET: {
-      value: process.env.JWT_SECRET,
-      validate: (val: string | undefined) => {
-        if (!val) return "JWT_SECRET is required";
-        if (isTestMode) return null; // Allow shorter secrets in test mode
-        if (val.length < 32) return "JWT_SECRET must be at least 32 characters long";
-        return null;
-      },
-    },
-    DATABASE_URL: {
-      value: process.env.DATABASE_URL,
-      validate: (val: string | undefined) => {
-        if (!val) return "DATABASE_URL is required";
-        if (!val.startsWith("mysql://")) {
-          return "DATABASE_URL must start with mysql:// (SRV lookup not supported)";
-        }
-        return null;
-      },
-    },
-  };
+  const cookieSecret = readEnv("JWT_SECRET");
+  const databaseUrl = readEnv("DATABASE_URL");
+  const appId = readEnv("VITE_APP_ID");
+  const oAuthServerUrl = readEnv("OAUTH_SERVER_URL");
+  const oAuthPortalUrl = readEnv("VITE_OAUTH_PORTAL_URL");
+  const appOrigin =
+    process.env.APP_ORIGIN ??
+    (isTestMode
+      ? TEST_DEFAULTS.APP_ORIGIN
+      : process.env.NODE_ENV === "development"
+        ? "http://localhost:3000"
+        : "");
 
-  // Conditionally required in production/development (not in tests)
+  if (!cookieSecret) {
+    errors.push("JWT_SECRET is required");
+  } else if (!isTestMode && cookieSecret.length < 32) {
+    errors.push("JWT_SECRET must be at least 32 characters long");
+  }
+
+  if (!databaseUrl) {
+    errors.push("DATABASE_URL is required");
+  } else if (!databaseUrl.startsWith("mysql://")) {
+    errors.push("DATABASE_URL must start with mysql:// (SRV lookup not supported)");
+  }
+
   if (!isTestMode) {
-    const productionEnvs = {
-      VITE_APP_ID: process.env.VITE_APP_ID,
-      OAUTH_SERVER_URL: process.env.OAUTH_SERVER_URL,
-      VITE_OAUTH_PORTAL_URL: process.env.VITE_OAUTH_PORTAL_URL,
-    };
-
-    Object.entries(productionEnvs).forEach(([key, value]) => {
-      if (!value) {
-        errors.push(`${key} is required in production/development mode`);
-      }
-    });
-
-    // APP_ORIGIN is required in production, but optional in development
-    if (process.env.NODE_ENV === "production" && !process.env.APP_ORIGIN) {
+    if (!appId) {
+      errors.push("VITE_APP_ID is required in production/development mode");
+    }
+    if (!oAuthServerUrl) {
+      errors.push("OAUTH_SERVER_URL is required in production/development mode");
+    }
+    if (!oAuthPortalUrl) {
+      errors.push("VITE_OAUTH_PORTAL_URL is required in production/development mode");
+    }
+    if (process.env.NODE_ENV === "production" && !appOrigin) {
       errors.push("APP_ORIGIN is required in production mode");
     }
   }
 
-  // Validate required environment variables
-  Object.entries(requiredEnvs).forEach(([key, { validate }]) => {
-    const error = validate(process.env[key]);
-    if (error) {
-      errors.push(error);
-    }
-  });
-
-  // Throw error if validation failed
   if (errors.length > 0) {
-    const errorMessage = `[ENV] Environment validation failed:\n${errors.map((e) => `  - ${e}`).join("\n")}`;
+    const errorMessage = `[ENV] Environment validation failed:\n${errors
+      .map((e) => `  - ${e}`)
+      .join("\n")}`;
     console.error(errorMessage);
     throw new Error(errorMessage);
   }
+
+  return {
+    appId: appId!,
+    cookieSecret: cookieSecret!,
+    databaseUrl: databaseUrl!,
+    appOrigin,
+    oAuthServerUrl: oAuthServerUrl!,
+    oAuthPortalUrl: oAuthPortalUrl!,
+    ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
+    ownerName: process.env.OWNER_NAME ?? "",
+    forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
+    forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
+    analyticsEndpoint: process.env.VITE_ANALYTICS_ENDPOINT ?? "",
+    analyticsWebsiteId: process.env.VITE_ANALYTICS_WEBSITE_ID ?? "",
+    isProduction: process.env.NODE_ENV === "production",
+    isDevelopment: process.env.NODE_ENV === "development",
+    isTest: isTestMode,
+  };
 }
 
-// Validate environment variables immediately on module load
-validateEnvironment();
-
-/**
- * Validated environment configuration
- * All values are guaranteed to be present and valid
- */
-export const ENV = {
-  // Core authentication
-  appId: process.env.VITE_APP_ID!,
-  cookieSecret: process.env.JWT_SECRET!,
-  databaseUrl: process.env.DATABASE_URL!,
-
-  // OAuth configuration
-  appOrigin: process.env.APP_ORIGIN || (process.env.NODE_ENV === "development" ? "http://localhost:5173" : ""),
-  oAuthServerUrl: process.env.OAUTH_SERVER_URL!,
-  oAuthPortalUrl: process.env.VITE_OAUTH_PORTAL_URL!,
-
-  // Owner information
-  ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
-  ownerName: process.env.OWNER_NAME ?? "",
-
-  // API configuration
-  forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
-  forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
-
-  // Analytics configuration
-  analyticsEndpoint: process.env.VITE_ANALYTICS_ENDPOINT ?? "",
-  analyticsWebsiteId: process.env.VITE_ANALYTICS_WEBSITE_ID ?? "",
-
-  // Runtime environment
-  isProduction: process.env.NODE_ENV === "production",
-  isDevelopment: process.env.NODE_ENV === "development",
-  isTest: process.env.NODE_ENV === "test" || process.env.VITEST === "true",
-} as const;
+export const ENV = validateEnvironment();

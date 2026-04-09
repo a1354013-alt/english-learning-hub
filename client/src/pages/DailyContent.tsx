@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -6,223 +6,222 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, ArrowLeft, Plus } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { transformGeneratedContent, GeneratedContentData } from "@/utils/contentTransform";
-
-// ============ Component ============
+import {
+  transformGeneratedContent,
+  type GeneratedContentData,
+} from "@/utils/contentTransform";
 
 type ContentState = "loading" | "empty" | "content";
 
 export default function DailyContent() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [contentData, setContentData] = useState<GeneratedContentData | null>(null);
   const [contentState, setContentState] = useState<ContentState>("loading");
 
-  // Fetch learning path to get proficiency level
   const { data: learningPath } = trpc.learningPath.get.useQuery(undefined, {
     enabled: isAuthenticated,
   });
 
-  // Get today's content first
   const getTodayQuery = trpc.content.getTodayContent.useQuery(
     { proficiencyLevel: learningPath?.currentLevel || "junior_high" },
     { enabled: isAuthenticated && !!learningPath }
   );
 
-  // Generate content mutation (only triggered manually)
   const generateMutation = trpc.content.generateToday.useMutation({
     onSuccess: (result) => {
-      if (result.success && result.data) {
-        const transformed = transformGeneratedContent(result.data);
-        setContentData(transformed);
-        setContentState("content");
-        toast.success("Content generated successfully!");
-      }
+      if (!result.success || !result.data) return;
+      const normalized = Array.isArray(result.data) ? result.data[0] : result.data;
+      setContentData(transformGeneratedContent(normalized));
+      setContentState("content");
+      toast.success("Today's content is ready.");
     },
     onError: (error) => {
-      toast.error(error.message || "Failed to generate content");
+      toast.error(error.message || "Failed to generate content.");
     },
   });
 
-  // Add to cards mutation
   const addToCardsMutation = trpc.srs.addCard.useMutation({
     onSuccess: () => {
-      toast.success("已添加到單字卡");
+      toast.success("Added to your review cards.");
     },
     onError: (error) => {
-      toast.error(error.message || "添加失敗");
+      toast.error(error.message || "Failed to add the card.");
     },
   });
 
-  // Three-state control: loading -> empty/content
   useEffect(() => {
     if (getTodayQuery.isLoading) {
       setContentState("loading");
       return;
     }
 
-    if (getTodayQuery.data && getTodayQuery.data.length > 0) {
-      // Use existing content - transform first item
-      const transformed = transformGeneratedContent(getTodayQuery.data[0]);
-      setContentData(transformed);
+    if (getTodayQuery.data?.length) {
+      setContentData(transformGeneratedContent(getTodayQuery.data[0]));
       setContentState("content");
-    } else if (getTodayQuery.isSuccess && getTodayQuery.data?.length === 0) {
-      // No content for today, show empty state
+      return;
+    }
+
+    if (getTodayQuery.isSuccess) {
       setContentState("empty");
     }
-  }, [getTodayQuery.data, getTodayQuery.isSuccess, getTodayQuery.isLoading]);
+  }, [getTodayQuery.data, getTodayQuery.isLoading, getTodayQuery.isSuccess]);
 
   if (!isAuthenticated) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Please log in first</p>
+      <div className="flex min-h-screen items-center justify-center">
+        <p>Please sign in first.</p>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="border-b border-border sticky top-0 z-50 bg-background/80 backdrop-blur-sm">
-        <div className="container flex items-center justify-between h-16">
+      <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-sm">
+        <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-accent" />
+            <BookOpen className="h-6 w-6 text-accent" />
             <span className="text-lg font-bold">English Learning Hub</span>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setLocation("/")}
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Home
+          <Button variant="outline" size="sm" onClick={() => setLocation("/")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to home
           </Button>
         </div>
       </nav>
 
-      {/* Main Content */}
-      <div className="container py-8 space-y-8">
+      <div className="container space-y-8 py-8">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Today's Learning Content</h1>
+          <h1 className="text-3xl font-bold">Today's learning content</h1>
           <p className="text-muted-foreground">
-            New content is automatically generated every 3 days based on your proficiency level.
+            Daily content is generated by level so you always have a small, focused
+            set of material to review.
           </p>
         </div>
 
-        {/* Loading State */}
         {contentState === "loading" ? (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+            <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-accent" />
           </div>
         ) : contentState === "empty" ? (
-          // Empty State with Manual Generate Button
           <Card>
             <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground mb-4">
-                No content generated yet. Click the button below to generate today's content.
+              <p className="mb-4 text-muted-foreground">
+                No content has been generated yet for today.
               </p>
               <Button
                 onClick={() => {
-                  if (learningPath) {
-                    generateMutation.mutate({
-                      proficiencyLevel: learningPath.currentLevel,
-                    });
-                  }
+                  if (!learningPath) return;
+                  generateMutation.mutate({
+                    proficiencyLevel: learningPath.currentLevel,
+                  });
                 }}
-                disabled={generateMutation.isPending}
+                disabled={generateMutation.isPending || !learningPath}
               >
-                {generateMutation.isPending ? "Generating..." : "Generate Content"}
+                {generateMutation.isPending ? "Generating..." : "Generate today's content"}
               </Button>
             </CardContent>
           </Card>
         ) : contentData ? (
-          // Content Display
           <div className="space-y-6">
-            {/* Vocabulary Section */}
-            {contentData.vocabulary && contentData.vocabulary.length > 0 && (
+            {contentData.vocabulary.length ? (
               <Card>
                 <CardHeader>
-                  <CardTitle>📚 Vocabulary</CardTitle>
+                  <CardTitle>Vocabulary</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {contentData.vocabulary.map((item, idx) => (
-                    <div key={idx} className="border-l-4 border-accent pl-4 py-2">
-                      <p className="font-semibold text-lg">{item.word}</p>
+                  {contentData.vocabulary.map((item) => (
+                    <div
+                      key={`${item.word}-${item.definition}`}
+                      className="border-l-4 border-accent py-2 pl-4"
+                    >
+                      <p className="text-lg font-semibold">{item.word}</p>
                       <p className="text-sm text-muted-foreground">{item.definition}</p>
-                      <p className="text-sm italic mt-2">例：{item.usage}</p>
+                      <p className="mt-2 text-sm italic">Usage: {item.usage}</p>
                       <Button
                         size="sm"
                         variant="outline"
-                        className="mt-2"
+                        className="mt-3"
                         onClick={() => {
                           addToCardsMutation.mutate({
                             frontText: item.word,
                             backText: item.definition,
                             exampleSentence: item.usage,
-                            proficiencyLevel: "junior_high",
+                            proficiencyLevel: learningPath?.currentLevel || "junior_high",
                           });
                         }}
                       >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Add to Cards
+                        <Plus className="mr-1 h-4 w-4" />
+                        Add to SRS
                       </Button>
                     </div>
                   ))}
                 </CardContent>
               </Card>
-            )}
+            ) : null}
 
-            {/* Phrase Section */}
-            {contentData.phrases && contentData.phrases.length > 0 && (
+            {contentData.phrases.length ? (
               <Card>
                 <CardHeader>
-                  <CardTitle>💬 Phrases</CardTitle>
+                  <CardTitle>Phrases</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {contentData.phrases.map((item, idx) => (
-                    <div key={idx} className="border-l-4 border-blue-500 pl-4 py-2">
-                      <p className="font-semibold text-lg">{item.phrase}</p>
-                      <p className="text-sm text-muted-foreground">{item.definition}</p>
-                      <p className="text-sm italic mt-2">例：{item.usage}</p>
+                  {contentData.phrases.map((item) => (
+                    <div
+                      key={`${item.phrase}-${item.definition}`}
+                      className="border-l-4 border-blue-500 py-2 pl-4"
+                    >
+                      <p className="text-lg font-semibold">{item.phrase}</p>
+                      {item.definition ? (
+                        <p className="text-sm text-muted-foreground">{item.definition}</p>
+                      ) : null}
+                      {item.usage ? (
+                        <p className="mt-2 text-sm italic">Usage: {item.usage}</p>
+                      ) : null}
                     </div>
                   ))}
                 </CardContent>
               </Card>
-            )}
+            ) : null}
 
-            {/* Sentence Section */}
-            {contentData.sentences && contentData.sentences.length > 0 && (
+            {contentData.sentences.length ? (
               <Card>
                 <CardHeader>
-                  <CardTitle>✍️ Sentences</CardTitle>
+                  <CardTitle>Sentences</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {contentData.sentences.map((item, idx) => (
-                    <div key={idx} className="border-l-4 border-green-500 pl-4 py-2">
-                      <p className="font-semibold text-lg">{item.sentence}</p>
-                      <p className="text-sm text-muted-foreground">{item.definition}</p>
-                      <p className="text-sm italic mt-2">例：{item.usage}</p>
+                  {contentData.sentences.map((item) => (
+                    <div
+                      key={`${item.sentence}-${item.definition}`}
+                      className="border-l-4 border-green-500 py-2 pl-4"
+                    >
+                      <p className="text-lg font-semibold">{item.sentence}</p>
+                      {item.definition ? (
+                        <p className="text-sm text-muted-foreground">{item.definition}</p>
+                      ) : null}
+                      {item.usage ? (
+                        <p className="mt-2 text-sm italic">Usage: {item.usage}</p>
+                      ) : null}
                     </div>
                   ))}
                 </CardContent>
               </Card>
-            )}
+            ) : null}
 
-            {/* Grammar Section */}
-            {contentData.grammar && (
+            {contentData.grammar ? (
               <Card>
                 <CardHeader>
-                  <CardTitle>🎓 Grammar</CardTitle>
+                  <CardTitle>Grammar focus</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div>
-                    <p className="font-semibold">{contentData.grammar.topic}</p>
-                    <p className="text-sm text-muted-foreground mt-2">{contentData.grammar.explanation}</p>
-                    <p className="text-sm italic mt-2">例：{contentData.grammar.example}</p>
-                  </div>
+                  <p className="font-semibold">{contentData.grammar.topic}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {contentData.grammar.explanation}
+                  </p>
+                  <p className="text-sm italic">Example: {contentData.grammar.example}</p>
                 </CardContent>
               </Card>
-            )}
+            ) : null}
           </div>
         ) : null}
       </div>

@@ -4,72 +4,79 @@ import { GamificationStats } from "@/components/GamificationStats";
 import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
-import { BookOpen, Video, PenTool, Zap, Calendar, Archive, Lightbulb, BookMarked } from "lucide-react";
+import {
+  Archive,
+  BookMarked,
+  BookOpen,
+  Calendar,
+  Lightbulb,
+  PenTool,
+  Video,
+  Zap,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 
-export default function Home() {
-  const { user, loading, isAuthenticated } = useAuth();
-  const [, setLocation] = useLocation();
-  const [heatmapData, setHeatmapData] = useState<
-    Array<{ date: string; count: number }>
-  >([]);
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+function formatDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
-  // Fetch gamification stats
+const levelLabels: Record<string, string> = {
+  junior_high: "Junior High",
+  senior_high: "Senior High",
+  college: "College",
+  advanced: "Advanced",
+};
+
+export default function Home() {
+  const { user, loading, isAuthenticated, logout } = useAuth();
+  const [, setLocation] = useLocation();
+  const [heatmapData, setHeatmapData] = useState<Array<{ date: string; count: number }>>([]);
+
   const { data: gamStats } = trpc.gamification.getStats.useQuery(undefined, {
     enabled: isAuthenticated,
   });
-
-  // Fetch learning path
   const { data: learningPath } = trpc.learningPath.get.useQuery(undefined, {
     enabled: isAuthenticated,
   });
-
-  // Fetch study logs for heatmap (past 84 days)
   const { data: studyLogs } = trpc.studyLog.listRecent.useQuery(
     { days: 84 },
     { enabled: isAuthenticated }
   );
 
-  // Generate heatmap data from real study logs
   useEffect(() => {
     if (!studyLogs) return;
-    
-    // Create a map of dates to activity counts
+
     const dateActivityMap = new Map<string, number>();
-    
-    // Initialize all dates in the past 84 days with 0
-    for (let i = 0; i < 84; i++) {
+
+    for (let i = 0; i < 84; i += 1) {
       const date = new Date();
       date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split("T")[0];
-      dateActivityMap.set(dateStr, 0);
+      dateActivityMap.set(formatDateKey(date), 0);
     }
-    
-    // Count activities per date from study logs
-    if (Array.isArray(studyLogs)) {
-      studyLogs.forEach((log) => {
-        const logDate = new Date(log.createdAt).toISOString().split("T")[0];
-        if (dateActivityMap.has(logDate)) {
-          dateActivityMap.set(logDate, (dateActivityMap.get(logDate) || 0) + 1);
-        }
-      });
+
+    for (const log of studyLogs) {
+      const key = formatDateKey(new Date(log.createdAt));
+      if (dateActivityMap.has(key)) {
+        dateActivityMap.set(key, (dateActivityMap.get(key) ?? 0) + 1);
+      }
     }
-    
-    // Convert to array format
-    const heatmapData = Array.from(dateActivityMap.entries())
-      .map(([date, count]) => ({ date, count }))
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    
-    setHeatmapData(heatmapData);
+
+    setHeatmapData(
+      Array.from(dateActivityMap.entries())
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => a.date.localeCompare(b.date))
+    );
   }, [studyLogs]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-accent" />
       </div>
     );
   }
@@ -77,305 +84,247 @@ export default function Home() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800">
-        {/* Navigation */}
-        <nav className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-          <div className="container flex items-center justify-between h-16">
+        <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-sm">
+          <div className="container flex h-16 items-center justify-between">
             <div className="flex items-center gap-2">
-              <BookOpen className="w-6 h-6 text-accent" />
+              <BookOpen className="h-6 w-6 text-accent" />
               <span className="text-lg font-bold">English Learning Hub</span>
             </div>
             <Button asChild>
-              <a href={getLoginUrl()}>登入</a>
+              <a href={getLoginUrl()}>Sign in</a>
             </Button>
           </div>
         </nav>
 
-        {/* Hero Section */}
-        <div className="container py-20 space-y-8">
-          <div className="max-w-2xl space-y-6">
+        <div className="container space-y-8 py-20">
+          <div className="max-w-3xl space-y-6">
             <h1 className="text-5xl font-bold tracking-tight">
-              從國中程度到多益 700 分
+              Break plateaus with a complete English practice loop
             </h1>
             <p className="text-xl text-muted-foreground">
-              使用 AI 驅動的智慧學習系統，通過 SRS 間隔重複、沉浸式影片學習和遊戲化激勵，逐步提升您的英文能力。
+              Practice vocabulary, SRS review, writing, listening, and AI-generated
+              study content in one place. The current product focus is long-term
+              retention, measurable progress, and workflows that are easy to keep
+              repeating.
             </p>
             <div className="flex gap-4">
               <Button size="lg" asChild>
-                <a href={getLoginUrl()}>開始學習</a>
+                <a href={getLoginUrl()}>Start learning</a>
               </Button>
-              <Button size="lg" variant="outline">
-                了解更多
+              <Button size="lg" variant="outline" onClick={() => setLocation("/daily-content")}>
+                Explore sample content
               </Button>
             </div>
           </div>
 
-          {/* Features Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mt-16">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-yellow-500" />
-                  SRS 智慧單字卡
+                  <Zap className="h-5 w-5 text-yellow-500" />
+                  SRS review
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  使用 SM-2 演算法，根據您的學習進度自動調整複習時間，提高記憶效率。
-                </p>
+              <CardContent className="text-sm text-muted-foreground">
+                Review cards with SM-2 scheduling so difficult items come back at
+                the right time.
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Video className="w-5 h-5 text-blue-500" />
-                  沉浸式影片學習
+                  <Video className="h-5 w-5 text-blue-500" />
+                  Video learning
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  觀看 YouTube 影片，同步字幕高亮，點擊單字即時查詢，邊看邊學。
-                </p>
+              <CardContent className="text-sm text-muted-foreground">
+                Study from transcript-based videos, click words, and add useful
+                vocabulary directly into review.
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <PenTool className="w-5 h-5 text-green-500" />
-                  寫作與語法糾錯
+                  <PenTool className="h-5 w-5 text-green-500" />
+                  Writing feedback
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  每日寫作挑戰，即時語法檢查，AI 潤飾建議，提升寫作能力。
-                </p>
+              <CardContent className="text-sm text-muted-foreground">
+                Get AI-assisted feedback, track writing history, and turn practice
+                into a repeatable habit.
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-orange-500" />
-                  遊戲化激勵系統
+                  <Calendar className="h-5 w-5 text-orange-500" />
+                  Streaks and XP
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  每日簽到、連勝追蹤、經驗值累積，學習進度可視化，保持學習動力。
-                </p>
+              <CardContent className="text-sm text-muted-foreground">
+                Keep momentum with streak tracking, daily activity history, and XP
+                from study sessions.
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-purple-500" />
-                  自動內容生成
+                  <Lightbulb className="h-5 w-5 text-purple-500" />
+                  Daily content
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  每三天自動生成適合您當前程度的學習內容，無需手動選擇。
-                </p>
+              <CardContent className="text-sm text-muted-foreground">
+                Generate level-based vocabulary, phrases, sentences, and grammar
+                practice for the day.
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Archive className="w-5 h-5 text-red-500" />
-                  智慧內容歸檔
+                  <Archive className="h-5 w-5 text-red-500" />
+                  AI courses
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  已學習的內容自動按時間和難度分類歸檔，方便複習和追蹤進度。
-                </p>
+              <CardContent className="text-sm text-muted-foreground">
+                Generate longer study packs, review them later, and import course
+                vocabulary into SRS.
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-pink-500" />
-                  AI 課程生成
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  使用本地 AI 按需生成自訂英文課程，包含詞彙、文法、閱讀和練習題。
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* CTA Section */}
-        <div className="border-t border-border bg-background py-16">
-          <div className="container text-center space-y-6">
-            <h2 className="text-3xl font-bold">準備好開始了嗎？</h2>
-            <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-              加入數千名學習者，使用 English Learning Hub 達成您的英文目標。
-            </p>
-            <Button size="lg" asChild>
-              <a href={getLoginUrl()}>立即登入開始</a>
-            </Button>
           </div>
         </div>
       </div>
     );
   }
 
+  const completionPercentage =
+    learningPath && "completionPercentage" in learningPath
+      ? Number(learningPath.completionPercentage)
+      : 0;
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="border-b border-border sticky top-0 z-50 bg-background/80 backdrop-blur-sm">
-        <div className="container flex items-center justify-between h-16">
+      <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-sm">
+        <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-accent" />
+            <BookOpen className="h-6 w-6 text-accent" />
             <span className="text-lg font-bold">English Learning Hub</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">
-              歡迎，{user?.name}
+              Welcome, {user?.name || user?.email || "Learner"}
             </span>
-            <div className="relative">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-              >
-                個人資料
-              </Button>
-              {isProfileMenuOpen && (
-                <div className="absolute top-10 right-0 bg-background border border-border rounded-lg shadow-lg p-2 z-50 min-w-48">
-                  <button className="w-full text-left px-3 py-2 hover:bg-muted rounded text-sm">
-                    查看個人資料
-                  </button>
-                  <button className="w-full text-left px-3 py-2 hover:bg-muted rounded text-sm">
-                    設定
-                  </button>
-                </div>
-              )}
-            </div>
+            <Button variant="outline" size="sm" onClick={() => void logout()}>
+              Sign out
+            </Button>
           </div>
         </div>
       </nav>
 
-      {/* Main Content */}
-      <div className="container py-8 space-y-8">
-        {/* Welcome Section */}
+      <div className="container space-y-8 py-8">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold">歡迎回來！</h1>
+          <h1 className="text-3xl font-bold">Your learning dashboard</h1>
           <p className="text-muted-foreground">
-            今天繼續您的英文學習之旅吧。
+            Review progress, pick your next activity, and keep your study loop moving.
           </p>
         </div>
 
-        {/* Gamification Stats */}
-        {gamStats && (
+        {gamStats ? (
           <GamificationStats
             totalXp={gamStats.totalXp}
             currentStreak={gamStats.currentStreak}
             longestStreak={gamStats.longestStreak}
             proficiencyLevel={gamStats.proficiencyLevel}
           />
-        )}
+        ) : null}
 
-        {/* Learning Path Info */}
-        {learningPath && (
+        {learningPath ? (
           <Card>
             <CardHeader>
-              <CardTitle>您的學習路徑</CardTitle>
+              <CardTitle>Learning path</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <p className="text-sm text-muted-foreground">當前程度</p>
+                  <p className="text-sm text-muted-foreground">Current level</p>
                   <p className="text-lg font-semibold">
-                    {learningPath.currentLevel === "junior_high"
-                      ? "國中程度"
-                      : learningPath.currentLevel === "senior_high"
-                        ? "高中程度"
-                        : learningPath.currentLevel === "college"
-                          ? "大學程度"
-                          : "進階程度"}
+                    {levelLabels[learningPath.currentLevel]}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">目標程度</p>
+                  <p className="text-sm text-muted-foreground">Target level</p>
                   <p className="text-lg font-semibold">
-                    {learningPath.targetLevel === "junior_high"
-                      ? "國中程度"
-                      : learningPath.targetLevel === "senior_high"
-                        ? "高中程度"
-                        : learningPath.targetLevel === "college"
-                          ? "大學程度"
-                          : "進階程度"}
+                    {levelLabels[learningPath.targetLevel]}
                   </p>
                 </div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>完成進度</span>
-                  <span>{50}%</span>
+                  <span>Completion</span>
+                  <span>{completionPercentage}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="h-2 w-full rounded-full bg-gray-200">
                   <div
-                    className="bg-accent h-2 rounded-full transition-all"
-                    style={{ width: `${50}%` }}
+                    className="h-2 rounded-full bg-accent transition-all"
+                    style={{ width: `${completionPercentage}%` }}
                   />
                 </div>
               </div>
             </CardContent>
           </Card>
-        )}
+        ) : null}
 
-        {/* Activity Heatmap */}
         <Card>
           <CardHeader>
-            <CardTitle>學習活動</CardTitle>
+            <CardTitle>Consistency</CardTitle>
           </CardHeader>
           <CardContent>
             <ActivityHeatmap data={heatmapData} />
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
           <Button className="h-24 text-lg" asChild>
             <a href="/srs">
-              <Zap className="w-6 h-6 mr-2" />
-              開始複習
+              <Zap className="mr-2 h-6 w-6" />
+              Review cards
             </a>
           </Button>
           <Button className="h-24 text-lg" variant="outline" asChild>
             <a href="/videos">
-              <Video className="w-6 h-6 mr-2" />
-              影片學習
+              <Video className="mr-2 h-6 w-6" />
+              Videos
             </a>
           </Button>
           <Button className="h-24 text-lg" variant="outline" asChild>
             <a href="/writing">
-              <PenTool className="w-6 h-6 mr-2" />
-              寫作練習
+              <PenTool className="mr-2 h-6 w-6" />
+              Writing
             </a>
           </Button>
           <Button className="h-24 text-lg" variant="outline" asChild>
             <a href="/daily-content">
-              <Lightbulb className="w-6 h-6 mr-2" />
-              每日內容
+              <Lightbulb className="mr-2 h-6 w-6" />
+              Daily content
             </a>
           </Button>
           <Button className="h-24 text-lg" variant="outline" asChild>
             <a href="/my-courses">
-              <BookMarked className="w-6 h-6 mr-2" />
-              我的課程
+              <BookMarked className="mr-2 h-6 w-6" />
+              My courses
             </a>
           </Button>
-          <Button className="h-24 text-lg" variant="outline" onClick={() => setLocation("/ai-course")}>
-            <Zap className="w-6 h-6 mr-2" />
-            生成課程
+          <Button
+            className="h-24 text-lg"
+            variant="outline"
+            onClick={() => setLocation("/ai-course")}
+          >
+            <Zap className="mr-2 h-6 w-6" />
+            Generate course
           </Button>
         </div>
       </div>

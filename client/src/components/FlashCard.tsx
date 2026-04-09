@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Volume2, RotateCw } from "lucide-react";
+import { Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface FlashCardProps {
@@ -11,6 +11,15 @@ interface FlashCardProps {
   onReview: (quality: number) => void;
   isLoading?: boolean;
 }
+
+const QUALITY_LABELS = [
+  "Forgot",
+  "Very hard",
+  "Hard",
+  "Okay",
+  "Good",
+  "Perfect",
+] as const;
 
 export function FlashCard({
   frontText,
@@ -24,10 +33,9 @@ export function FlashCard({
   const [isFlipped, setIsFlipped] = useState(false);
 
   const playAudio = () => {
-    if (audioUrl) {
-      const audio = new Audio(audioUrl);
-      audio.play();
-    }
+    if (!audioUrl) return;
+    const audio = new Audio(audioUrl);
+    void audio.play();
   };
 
   const handleQuality = (quality: number) => {
@@ -37,113 +45,67 @@ export function FlashCard({
 
   return (
     <div className="flex flex-col items-center gap-6">
-      {/* Flashcard */}
       <div
         className="flashcard cursor-pointer"
-        onClick={() => setIsFlipped(!isFlipped)}
+        onClick={() => setIsFlipped((value) => !value)}
       >
         <div className="text-center">
           {!isFlipped ? (
             <div className="space-y-4">
               <div className="flashcard-front">{frontText}</div>
-              {phonetic && (
+              {phonetic ? (
                 <div className="text-sm text-muted-foreground">/{phonetic}/</div>
-              )}
-              {audioUrl && (
+              ) : null}
+              {audioUrl ? (
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={(event) => {
+                    event.stopPropagation();
                     playAudio();
                   }}
-                  className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-accent text-accent-foreground hover:opacity-90 transition-opacity"
+                  className="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1 text-sm text-accent-foreground transition-opacity hover:opacity-90"
                 >
-                  <Volume2 className="w-4 h-4" />
-                  <span className="text-sm">聽發音</span>
+                  <Volume2 className="h-4 w-4" />
+                  Play audio
                 </button>
-              )}
-              <div className="text-xs text-muted-foreground mt-4">
-                點擊查看答案
+              ) : null}
+              <div className="text-xs text-muted-foreground">
+                Click to reveal the answer
               </div>
             </div>
           ) : (
             <div className="space-y-4">
               <div className="flashcard-back">{backText}</div>
-              {exampleSentence && (
-                <div className="text-sm text-muted-foreground italic">
-                  例句：{exampleSentence}
+              {exampleSentence ? (
+                <div className="text-sm italic text-muted-foreground">
+                  Example: {exampleSentence}
                 </div>
-              )}
-              <div className="text-xs text-muted-foreground mt-4">
-                點擊返回正面
+              ) : null}
+              <div className="text-xs text-muted-foreground">
+                Rate how well you remembered it
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Review Buttons */}
-      {isFlipped && (
-        <div className="flex gap-2 flex-wrap justify-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleQuality(0)}
-            disabled={isLoading}
-            className="text-red-600 hover:text-red-700"
-          >
-            忘記 (0)
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleQuality(1)}
-            disabled={isLoading}
-            className="text-orange-600 hover:text-orange-700"
-          >
-            困難 (1)
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleQuality(2)}
-            disabled={isLoading}
-            className="text-yellow-600 hover:text-yellow-700"
-          >
-            有點難 (2)
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleQuality(3)}
-            disabled={isLoading}
-            className="text-blue-600 hover:text-blue-700"
-          >
-            勉強記得 (3)
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleQuality(4)}
-            disabled={isLoading}
-            className="text-green-600 hover:text-green-700"
-          >
-            記得 (4)
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleQuality(5)}
-            disabled={isLoading}
-            className="text-emerald-600 hover:text-emerald-700"
-          >
-            完美 (5)
-          </Button>
+      {isFlipped ? (
+        <div className="flex flex-wrap justify-center gap-2">
+          {QUALITY_LABELS.map((label, index) => (
+            <Button
+              key={label}
+              variant="outline"
+              size="sm"
+              disabled={isLoading}
+              onClick={() => handleQuality(index)}
+            >
+              {label} ({index})
+            </Button>
+          ))}
         </div>
-      )}
+      ) : null}
 
-      {/* Info */}
-      <div className="text-xs text-muted-foreground text-center">
-        根據 SM-2 演算法，您的評分將決定下次複習的時間
+      <div className="text-center text-xs text-muted-foreground">
+        Reviews are scored with the SM-2 algorithm to schedule your next card.
       </div>
     </div>
   );

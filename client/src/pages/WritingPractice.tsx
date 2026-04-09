@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { BookOpen, ArrowLeft, AlertCircle, CheckCircle } from "lucide-react";
+import { AlertCircle, ArrowLeft, BookOpen, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface GrammarCorrection {
@@ -26,63 +26,57 @@ export default function WritingPractice() {
     suggestions: string[];
   } | null>(null);
 
-  // Fetch today's writing challenge
-  const { data: challenge, isLoading: challengeLoading } = trpc.writing.getTodayChallenge.useQuery(
-    undefined,
-    { enabled: isAuthenticated }
-  );
+  const { data: challenge, isLoading: challengeLoading } =
+    trpc.writing.getTodayChallenge.useQuery(undefined, {
+      enabled: isAuthenticated,
+    });
 
-  // Grammar check mutation
   const grammarCheckMutation = trpc.writing.checkGrammar.useMutation({
     onSuccess: (result) => {
       setCheckResult(result);
       setHasChecked(true);
-      
+
       if (result.corrections.length === 0) {
-        toast.success("未發現文法錯誤！");
+        toast.success("No corrections found.");
       } else {
-        toast.info(`發現 ${result.corrections.length} 個需要改進的地方`);
+        toast.info(`Found ${result.corrections.length} possible corrections.`);
       }
     },
     onError: (error) => {
-      toast.error(error.message || "文法檢查失敗");
+      toast.error(error.message || "Failed to check grammar.");
     },
   });
 
-  // Submit writing mutation
   const submitMutation = trpc.writing.submit.useMutation({
     onSuccess: (result) => {
-      toast.success(`已提交！獲得 ${result.xpEarned} XP，評分 ${result.score} 分`);
+      toast.success(`Submission saved. +${result.xpEarned} XP, score ${result.score}.`);
       setContent("");
       setHasChecked(false);
       setCheckResult(null);
-      // Navigate to submission history after successful submit
-      setTimeout(() => {
-        setLocation("/submission-history");
-      }, 500);
+      setTimeout(() => setLocation("/submission-history"), 400);
     },
     onError: (error) => {
-      toast.error(error.message || "提交失敗");
+      toast.error(error.message || "Failed to submit writing.");
     },
   });
 
-  const handleCheckGrammar = async () => {
-    if (content.length < 10) {
-      toast.error("請至少寫 10 個字以上");
+  const handleCheckGrammar = () => {
+    if (content.trim().length < 10) {
+      toast.error("Please write at least 10 characters.");
       return;
     }
 
     grammarCheckMutation.mutate({ content });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!challenge) {
-      toast.error("無法取得寫作挑戰");
+      toast.error("No challenge is available right now.");
       return;
     }
 
-    if (content.length < 10) {
-      toast.error("請至少寫 10 個字以上");
+    if (content.trim().length < 10) {
+      toast.error("Please write at least 10 characters.");
       return;
     }
 
@@ -94,49 +88,41 @@ export default function WritingPractice() {
 
   if (!isAuthenticated) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>請先登入</p>
+      <div className="flex min-h-screen items-center justify-center">
+        <p>Please sign in first.</p>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="border-b border-border sticky top-0 z-50 bg-background/80 backdrop-blur-sm">
-        <div className="container flex items-center justify-between h-16">
+      <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-sm">
+        <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-accent" />
+            <BookOpen className="h-6 w-6 text-accent" />
             <span className="text-lg font-bold">English Learning Hub</span>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setLocation("/")}
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            返回首頁
+          <Button variant="outline" size="sm" onClick={() => setLocation("/")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to home
           </Button>
         </div>
       </nav>
 
-      {/* Main Content */}
-      <div className="container py-8 space-y-8 max-w-4xl">
+      <div className="container max-w-4xl space-y-8 py-8">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold">寫作練習</h1>
+          <h1 className="text-3xl font-bold">Writing practice</h1>
           <p className="text-muted-foreground">
-            完成每日寫作挑戰，獲得 XP 並改進您的英文寫作能力。
+            Draft a response, check grammar, and submit your work for scoring and feedback.
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Main Writing Area */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Challenge Card */}
+        <div className="grid gap-8 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
             {challengeLoading ? (
               <Card>
                 <CardContent className="pt-6">
-                  <p className="text-muted-foreground">加載挑戰中...</p>
+                  <p className="text-muted-foreground">Loading today's prompt...</p>
                 </CardContent>
               </Card>
             ) : challenge ? (
@@ -146,174 +132,167 @@ export default function WritingPractice() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <p className="text-sm font-semibold text-muted-foreground mb-2">主題</p>
-                    <p className="text-foreground">{challenge.topic}</p>
+                    <p className="mb-2 text-sm font-semibold text-muted-foreground">Topic</p>
+                    <p>{challenge.topic}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-muted-foreground mb-2">提示</p>
-                    <p className="text-foreground">{challenge.prompt}</p>
+                    <p className="mb-2 text-sm font-semibold text-muted-foreground">Prompt</p>
+                    <p>{challenge.prompt}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-muted-foreground mb-2">難度等級</p>
-                    <p className="text-foreground">{challenge.proficiencyLevel.replace(/_/g, " ")}</p>
+                    <p className="mb-2 text-sm font-semibold text-muted-foreground">Level</p>
+                    <p>{challenge.proficiencyLevel.replace(/_/g, " ")}</p>
                   </div>
                 </CardContent>
               </Card>
             ) : (
               <Card>
                 <CardContent className="pt-6">
-                  <p className="text-muted-foreground">無法加載挑戰</p>
+                  <p className="text-muted-foreground">No writing challenge is available.</p>
                 </CardContent>
               </Card>
             )}
 
-            {/* Writing Input */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">您的寫作</CardTitle>
+                <CardTitle className="text-sm">Your draft</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Textarea
-                  placeholder="在此輸入您的英文寫作..."
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
                   className="min-h-64"
+                  placeholder="Write your response here..."
+                  value={content}
+                  onChange={(event) => setContent(event.target.value)}
                 />
                 <div className="flex gap-2">
                   <Button
-                    onClick={handleCheckGrammar}
-                    disabled={grammarCheckMutation.isPending || content.length < 10}
-                    variant="outline"
                     className="flex-1"
+                    variant="outline"
+                    disabled={grammarCheckMutation.isPending || content.trim().length < 10}
+                    onClick={handleCheckGrammar}
                   >
-                    檢查文法
+                    Check grammar
                   </Button>
                   <Button
-                    onClick={handleSubmit}
-                    disabled={submitMutation.isPending || content.length < 10}
                     className="flex-1"
+                    disabled={submitMutation.isPending || content.trim().length < 10}
+                    onClick={handleSubmit}
                   >
-                    提交寫作
+                    Submit writing
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  字數：{content.length} / 最少 10 字
+                  Character count: {content.length}
                 </p>
               </CardContent>
             </Card>
 
-            {/* Grammar Check Results */}
-            {hasChecked && checkResult && (
+            {hasChecked && checkResult ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-sm">
                     {checkResult.corrections.length === 0 ? (
                       <>
-                        <CheckCircle className="w-5 h-5 text-green-500" />
-                        檢查完成
+                        <CheckCircle className="h-5 w-5 text-green-500" />
+                        Grammar check passed
                       </>
                     ) : (
                       <>
-                        <AlertCircle className="w-5 h-5 text-yellow-500" />
-                        發現 {checkResult.corrections.length} 個改進點
+                        <AlertCircle className="h-5 w-5 text-yellow-500" />
+                        {checkResult.corrections.length} suggested corrections
                       </>
                     )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <p className="text-sm font-semibold text-muted-foreground mb-2">整體反饋</p>
-                    <p className="text-foreground">{checkResult.feedback}</p>
+                    <p className="mb-2 text-sm font-semibold text-muted-foreground">
+                      Overall feedback
+                    </p>
+                    <p>{checkResult.feedback}</p>
                   </div>
 
-                  {checkResult.corrections.length > 0 && (
+                  {checkResult.corrections.length ? (
                     <div>
-                      <p className="text-sm font-semibold text-muted-foreground mb-3">語法糾正</p>
+                      <p className="mb-3 text-sm font-semibold text-muted-foreground">
+                        Corrections
+                      </p>
                       <div className="space-y-3">
-                        {checkResult.corrections.map((correction, idx) => (
-                          <div key={idx} className="p-3 bg-muted rounded-lg space-y-2">
+                        {checkResult.corrections.map((correction, index) => (
+                          <div key={`${correction.original}-${index}`} className="space-y-2 rounded-lg bg-muted p-3">
                             <div className="flex items-start gap-2">
-                              <span className="text-sm font-mono bg-red-100 text-red-800 px-2 py-1 rounded">
+                              <span className="rounded bg-red-100 px-2 py-1 font-mono text-sm text-red-800">
                                 {correction.original}
                               </span>
-                              <span className="text-sm">→</span>
-                              <span className="text-sm font-mono bg-green-100 text-green-800 px-2 py-1 rounded">
+                              <span className="text-sm">to</span>
+                              <span className="rounded bg-green-100 px-2 py-1 font-mono text-sm text-green-800">
                                 {correction.corrected}
                               </span>
                             </div>
-                            <p className="text-sm text-muted-foreground">{correction.explanation}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {correction.explanation}
+                            </p>
                           </div>
                         ))}
                       </div>
                     </div>
-                  )}
+                  ) : null}
 
-                  {checkResult.suggestions.length > 0 && (
+                  {checkResult.suggestions.length ? (
                     <div>
-                      <p className="text-sm font-semibold text-muted-foreground mb-2">改進建議</p>
+                      <p className="mb-2 text-sm font-semibold text-muted-foreground">
+                        Suggestions
+                      </p>
                       <ul className="space-y-2">
-                        {checkResult.suggestions.map((suggestion, idx) => (
-                          <li key={idx} className="text-sm text-foreground flex gap-2">
+                        {checkResult.suggestions.map((suggestion) => (
+                          <li key={suggestion} className="flex gap-2 text-sm">
                             <span className="text-accent">•</span>
-                            {suggestion}
+                            <span>{suggestion}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
-                  )}
+                  ) : null}
                 </CardContent>
               </Card>
-            )}
+            ) : null}
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Stats Card */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">寫作統計</CardTitle>
+                <CardTitle className="text-sm">Draft stats</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">字數</p>
+                  <p className="mb-1 text-xs text-muted-foreground">Characters</p>
                   <p className="text-2xl font-bold">{content.length}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">單詞數</p>
-                  <p className="text-2xl font-bold">{content.split(/\s+/).filter(w => w.length > 0).length}</p>
+                  <p className="mb-1 text-xs text-muted-foreground">Words</p>
+                  <p className="text-2xl font-bold">
+                    {content.split(/\s+/).filter((word) => word.length > 0).length}
+                  </p>
                 </div>
-                {checkResult && (
+                {checkResult ? (
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1">評分</p>
+                    <p className="mb-1 text-xs text-muted-foreground">Score</p>
                     <p className="text-2xl font-bold text-accent">{checkResult.score}/100</p>
                   </div>
-                )}
+                ) : null}
               </CardContent>
             </Card>
 
-            {/* Tips Card */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">寫作提示</CardTitle>
+                <CardTitle className="text-sm">Writing tips</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <ul className="text-sm space-y-2 text-muted-foreground">
-                  <li className="flex gap-2">
-                    <span>✓</span>
-                    <span>使用完整句子</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span>✓</span>
-                    <span>檢查時態一致性</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span>✓</span>
-                    <span>注意標點符號</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span>✓</span>
-                    <span>檢查主謂一致</span>
-                  </li>
+              <CardContent>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li>Use complete sentences with clear subjects and verbs.</li>
+                  <li>Check for repeated wording and overly short answers.</li>
+                  <li>Support your ideas with examples when possible.</li>
+                  <li>Run grammar check before submitting if you are unsure.</li>
                 </ul>
               </CardContent>
             </Card>
