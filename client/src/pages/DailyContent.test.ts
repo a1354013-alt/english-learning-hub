@@ -38,6 +38,53 @@ describe("transformGeneratedContent", () => {
     expect(result.grammar?.topic).toBe("Present Tense");
   });
 
+  it("should accept phrase and sentence in string format", () => {
+    const data = {
+      readingMaterial: {
+        phrase: "How are you?",
+        sentence: "I am fine.",
+      },
+    };
+
+    const result = transformGeneratedContent(data);
+    expect(result.phrases).toEqual([{ phrase: "How are you?" }]);
+    expect(result.sentences).toEqual([{ sentence: "I am fine." }]);
+  });
+
+  it("should accept phrase and sentence in object format", () => {
+    const data = {
+      readingMaterial: {
+        phrase: { phrase: "Break the ice", definition: "Start conversation", usage: "Tell a joke." },
+        sentence: { sentence: "She broke the ice.", definition: "Started naturally", usage: "At the party." },
+      },
+    };
+
+    const result = transformGeneratedContent(data);
+    expect(result.phrases[0]).toEqual({
+      phrase: "Break the ice",
+      definition: "Start conversation",
+      usage: "Tell a joke.",
+    });
+    expect(result.sentences[0]).toEqual({
+      sentence: "She broke the ice.",
+      definition: "Started naturally",
+      usage: "At the party.",
+    });
+  });
+
+  it("should ignore broken readingMaterial entries", () => {
+    const data = {
+      readingMaterial: {
+        phrase: { definition: "missing phrase" },
+        sentence: 1234,
+      },
+    };
+
+    const result = transformGeneratedContent(data);
+    expect(result.phrases).toEqual([]);
+    expect(result.sentences).toEqual([]);
+  });
+
   it("should handle missing readingMaterial", () => {
     const data = {
       vocabulary: [{ word: "test", definition: "A test", usage: "This is a test" }],

@@ -21,15 +21,22 @@ export function ThemeProvider({
   defaultTheme = "light",
   switchable = false,
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (switchable) {
-      const stored = localStorage.getItem("theme");
-      return (stored as Theme) || defaultTheme;
-    }
-    return defaultTheme;
-  });
+  const [theme, setTheme] = useState<Theme>(defaultTheme);
 
   useEffect(() => {
+    if (!switchable || typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem("theme");
+      if (stored === "light" || stored === "dark") {
+        setTheme(stored);
+      }
+    } catch {
+      // Ignore storage errors in restricted browser modes.
+    }
+  }, [switchable]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
     const root = document.documentElement;
     if (theme === "dark") {
       root.classList.add("dark");
@@ -37,8 +44,12 @@ export function ThemeProvider({
       root.classList.remove("dark");
     }
 
-    if (switchable) {
-      localStorage.setItem("theme", theme);
+    if (switchable && typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem("theme", theme);
+      } catch {
+        // Ignore storage errors in restricted browser modes.
+      }
     }
   }, [theme, switchable]);
 

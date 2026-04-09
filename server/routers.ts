@@ -1,7 +1,7 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
+import { adminProcedure, publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
 import {
   getDueCards,
@@ -14,13 +14,16 @@ import {
   getGeneratedContent,
   archiveGeneratedContent,
   getDb,
+  toDateStr,
 } from "./db";
 import { TRPCError } from "@trpc/server";
 import { generateDailyContent, archiveOldContent } from "./contentGeneration";
+import { normalizeCheckpointSecond, shouldDeduplicateVideoProgress } from "./videoProgress";
+import { challengeIndexForDate } from "./writingChallenge";
 import { getSRSStats } from "./db";
 import { generateEnglishCourse, generateWritingFeedback } from "./ollama";
 import { saveAiCourse, getAiCourses, deleteAiCourse, markCourseCompleted, rateCourse, addCourseNotes } from "./db";
-import { eq, and, desc, lt, sql } from "drizzle-orm";
+import { eq, and, asc, desc, lt, sql } from "drizzle-orm";
 import {
   users,
   cards,
@@ -37,6 +40,70 @@ import {
   aiCourses,
   WritingError,
 } from "../drizzle/schema";
+
+const PROFICIENCY_LEVEL_SCHEMA = z.enum([
+  "junior_high",
+  "senior_high",
+  "college",
+  "advanced",
+]);
+
+const trimmedString = (min: number, max: number) =>
+  z
+    .string()
+    .trim()
+    .min(min)
+    .max(max);
+
+async function getDailyWritingChallengeForUser(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const userResult = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (userResult.length === 0) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+  }
+
+  const userLevel = userResult[0].proficiencyLevel;
+  const today = new Date();
+  const todayDate = toDateStr(today);
+
+  const directMatch = await db
+    .select()
+    .from(writingChallenges)
+    .where(
+      and(
+        eq(writingChallenges.proficiencyLevel, userLevel),
+        eq(writingChallenges.activeDate, todayDate),
+      )
+    )
+    .orderBy(asc(writingChallenges.id))
+    .limit(1);
+
+  if (directMatch.length > 0) {
+    return directMatch[0];
+  }
+
+  const levelChallenges = await db
+    .select()
+    .from(writingChallenges)
+    .where(eq(writingChallenges.proficiencyLevel, userLevel))
+    .orderBy(asc(writingChallenges.id));
+
+  if (levelChallenges.length === 0) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "No writing challenges available" });
+  }
+
+  const index = challengeIndexForDate(today, levelChallenges.length);
+  return levelChallenges[index];
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -57,7 +124,7 @@ export const appRouter = router({
      * Get cards due for review
      */
     getDueCards: protectedProcedure
-      .input(z.object({ limit: z.number().default(20) }))
+      .input(z.object({ limit: z.number().int().min(1).max(100).default(20) }))
       .query(async ({ ctx, input }) => {
         const cards = await getDueCards(ctx.user.id, input.limit);
         return cards;
@@ -69,8 +136,8 @@ export const appRouter = router({
     reviewCard: protectedProcedure
       .input(
         z.object({
-          cardId: z.number(),
-          quality: z.number().min(0).max(5), // 0-5 quality score
+          cardId: z.number().int().positive(),
+          quality: z.number().int().min(0).max(5), // 0-5 quality score
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -98,17 +165,12 @@ export const appRouter = router({
     addCard: protectedProcedure
       .input(
         z.object({
-          frontText: z.string().max(500),
-          backText: z.string().max(2000),
-          phonetic: z.string().max(100).optional(),
-          audioUrl: z.string().max(500).optional(),
-          exampleSentence: z.string().max(1000).optional(),
-          proficiencyLevel: z.enum([
-            "junior_high",
-            "senior_high",
-            "college",
-            "advanced",
-          ]),
+          frontText: trimmedString(1, 255),
+          backText: trimmedString(1, 5000),
+          phonetic: trimmedString(1, 255).optional(),
+          audioUrl: z.string().trim().url().max(512).optional(),
+          exampleSentence: trimmedString(1, 5000).optional(),
+          proficiencyLevel: PROFICIENCY_LEVEL_SCHEMA,
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -215,7 +277,7 @@ export const appRouter = router({
      * Look up a word in the dictionary
      */
     lookup: protectedProcedure
-      .input(z.object({ word: z.string().max(100) }))
+      .input(z.object({ word: trimmedString(1, 255) }))
       .query(async ({ input }) => {
         const entry = await getDictionaryEntry(input.word);
         if (entry) {
@@ -232,17 +294,12 @@ export const appRouter = router({
     addWord: protectedProcedure
       .input(
         z.object({
-          word: z.string().max(100),
-          phonetic: z.string().max(100).optional(),
-          audioUrl: z.string().max(500).optional(),
+          word: trimmedString(1, 255),
+          phonetic: trimmedString(1, 255).optional(),
+          audioUrl: z.string().trim().url().max(512).optional(),
           definitions: z.unknown(),
           exampleSentences: z.unknown().optional(),
-          proficiencyLevel: z.enum([
-            "junior_high",
-            "senior_high",
-            "college",
-            "advanced",
-          ]),
+          proficiencyLevel: PROFICIENCY_LEVEL_SCHEMA,
         })
       )
       .mutation(async ({ input }) => {
@@ -339,18 +396,8 @@ export const appRouter = router({
     update: protectedProcedure
       .input(
         z.object({
-          currentLevel: z.enum([
-            "junior_high",
-            "senior_high",
-            "college",
-            "advanced",
-          ]),
-          targetLevel: z.enum([
-            "junior_high",
-            "senior_high",
-            "college",
-            "advanced",
-          ]),
+          currentLevel: PROFICIENCY_LEVEL_SCHEMA,
+          targetLevel: PROFICIENCY_LEVEL_SCHEMA,
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -368,13 +415,8 @@ export const appRouter = router({
     generate: protectedProcedure
       .input(
         z.object({
-          proficiencyLevel: z.enum([
-            "junior_high",
-            "senior_high",
-            "college",
-            "advanced",
-          ]),
-          topic: z.string().max(500).optional(),
+          proficiencyLevel: PROFICIENCY_LEVEL_SCHEMA,
+          topic: trimmedString(1, 255).optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -398,37 +440,37 @@ export const appRouter = router({
         }
       }),
     list: protectedProcedure
-      .input(z.object({ limit: z.number().default(50), offset: z.number().default(0) }))
+      .input(z.object({ limit: z.number().int().min(1).max(100).default(50), offset: z.number().int().min(0).default(0) }))
       .query(async ({ ctx, input }) => {
         const courses = await getAiCourses(ctx.user.id, input.limit, input.offset);
         return courses;
       }),
     delete: protectedProcedure
-      .input(z.object({ courseId: z.number() }))
+      .input(z.object({ courseId: z.number().int().positive() }))
       .mutation(async ({ ctx, input }) => {
         const result = await deleteAiCourse(ctx.user.id, input.courseId);
         return result;
       }),
     markCompleted: protectedProcedure
-      .input(z.object({ courseId: z.number() }))
+      .input(z.object({ courseId: z.number().int().positive() }))
       .mutation(async ({ ctx, input }) => {
         const result = await markCourseCompleted(ctx.user.id, input.courseId);
         return result;
       }),
     rate: protectedProcedure
-      .input(z.object({ courseId: z.number(), rating: z.number().min(1).max(5) }))
+      .input(z.object({ courseId: z.number().int().positive(), rating: z.number().int().min(1).max(5) }))
       .mutation(async ({ ctx, input }) => {
         const result = await rateCourse(ctx.user.id, input.courseId, input.rating);
         return result;
       }),
     addNotes: protectedProcedure
-      .input(z.object({ courseId: z.number(), notes: z.string().max(5000) }))
+      .input(z.object({ courseId: z.number().int().positive(), notes: trimmedString(1, 5000) }))
       .mutation(async ({ ctx, input }) => {
         const result = await addCourseNotes(ctx.user.id, input.courseId, input.notes);
         return result;
       }),
     importToSRS: protectedProcedure
-      .input(z.object({ courseId: z.number(), deckId: z.number().optional() }))
+      .input(z.object({ courseId: z.number().int().positive(), deckId: z.number().int().positive().optional() }))
       .mutation(async ({ ctx, input }) => {
         try {
           const db = await getDb();
@@ -531,12 +573,7 @@ export const appRouter = router({
     generateToday: protectedProcedure
       .input(
         z.object({
-          proficiencyLevel: z.enum([
-            "junior_high",
-            "senior_high",
-            "college",
-            "advanced",
-          ]),
+          proficiencyLevel: PROFICIENCY_LEVEL_SCHEMA,
         })
       )
       .mutation(async ({ input }) => {
@@ -560,12 +597,7 @@ export const appRouter = router({
     getTodayContent: protectedProcedure
       .input(
         z.object({
-          proficiencyLevel: z.enum([
-            "junior_high",
-            "senior_high",
-            "college",
-            "advanced",
-          ]),
+          proficiencyLevel: PROFICIENCY_LEVEL_SCHEMA,
         })
       )
       .query(async ({ input }) => {
@@ -577,8 +609,8 @@ export const appRouter = router({
     /**
      * Archive generated content
      */
-    archive: protectedProcedure
-      .input(z.object({ contentId: z.number() }))
+    archive: adminProcedure
+      .input(z.object({ contentId: z.number().int().positive() }))
       .mutation(async ({ input }) => {
         const result = await archiveGeneratedContent(input.contentId);
         return result;
@@ -587,7 +619,7 @@ export const appRouter = router({
     /**
      * Archive old content (older than 30 days)
      */
-    archiveOld: protectedProcedure.mutation(async () => {
+    archiveOld: adminProcedure.mutation(async () => {
       try {
         await archiveOldContent();
         return { success: true };
@@ -603,7 +635,7 @@ export const appRouter = router({
   // Video learning router
   video: router({
     list: protectedProcedure
-      .input(z.object({ level: z.enum(["junior_high", "senior_high", "college", "advanced"]).optional() }))
+      .input(z.object({ level: PROFICIENCY_LEVEL_SCHEMA.optional() }))
       .query(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
@@ -615,7 +647,7 @@ export const appRouter = router({
       }),
     
     detail: protectedProcedure
-      .input(z.object({ videoId: z.number() }))
+      .input(z.object({ videoId: z.number().int().positive() }))
       .query(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
@@ -633,7 +665,7 @@ export const appRouter = router({
       }),
     
     logProgress: protectedProcedure
-      .input(z.object({ videoId: z.number(), currentTime: z.number(), duration: z.number() }))
+      .input(z.object({ videoId: z.number().int().positive(), currentTime: z.number().min(0), duration: z.number().positive() }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
@@ -643,12 +675,10 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid video duration" });
         }
         
-        // Server-side deduplication using studyLogs.metadata
-        // Normalize checkpoint to floor of current time (in seconds)
-        const checkpointSecond = Math.floor(input.currentTime);
+        // Server-side deduplication with explicit video identity contract.
+        const checkpointSecond = normalizeCheckpointSecond(input.currentTime);
         const thirtySecondsAgo = new Date(Date.now() - 30000);
         
-        // Check for recent logs with matching videoId and checkpointSecond in metadata
         const recentLogs = await db
           .select()
           .from(studyLogs)
@@ -656,23 +686,21 @@ export const appRouter = router({
             and(
               eq(studyLogs.userId, ctx.user.id),
               eq(studyLogs.activityType, "video"),
+              eq(studyLogs.videoId, input.videoId),
+              eq(studyLogs.checkpointSecond, checkpointSecond),
               sql`${studyLogs.createdAt} >= ${thirtySecondsAgo}`
             )
           )
-          .limit(10);
+          .limit(1);
         
-        // Check if any recent log matches this videoId and checkpoint
-        const isDuplicate = recentLogs.some((log) => {
-          try {
-            const metadata = typeof log.metadata === 'string' ? JSON.parse(log.metadata) : log.metadata;
-            return (
-              metadata?.videoId === input.videoId &&
-              metadata?.checkpointSecond === checkpointSecond
-            );
-          } catch {
-            return false;
-          }
-        });
+        const isDuplicate = shouldDeduplicateVideoProgress(
+          recentLogs.map((log) => ({
+            videoId: log.videoId ?? null,
+            checkpointSecond: log.checkpointSecond ?? null,
+          })),
+          input.videoId,
+          checkpointSecond
+        );
         
         if (isDuplicate) {
           return { success: true, xpEarned: 0, deduplicated: true };
@@ -686,8 +714,10 @@ export const appRouter = router({
           userId: ctx.user.id,
           cardId: null,
           activityType: "video",
+          videoId: input.videoId,
+          checkpointSecond,
           xpEarned: Math.max(1, xpEarned),
-          metadata: JSON.stringify({ videoId: input.videoId, checkpointSecond }),
+          metadata: { videoId: input.videoId, checkpointSecond },
           createdAt: new Date(),
         });
         
@@ -697,40 +727,15 @@ export const appRouter = router({
 
   // Writing practice router
   writing: router({
-    getTodayChallenge: protectedProcedure
-      .query(async ({ ctx }) => {
-        const db = await getDb();
-        if (!db) throw new Error("Database not available");
-        
-        // Get user's proficiency level
-        const userResult = await db
-          .select()
-          .from(users)
-          .where(eq(users.id, ctx.user.id))
-          .limit(1);
-        
-        if (userResult.length === 0) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
-        }
-        
-        const userLevel = userResult[0].proficiencyLevel;
-        
-        // Get a writing challenge matching user's proficiency level
-        const challenges = await db
-          .select()
-          .from(writingChallenges)
-          .where(eq(writingChallenges.proficiencyLevel, userLevel))
-          .limit(1);
-        
-        if (challenges.length === 0) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "No writing challenges available" });
-        }
-        
-        return challenges[0];
-      }),
+    getDailyChallenge: protectedProcedure
+      .query(async ({ ctx }) => getDailyWritingChallengeForUser(ctx.user.id)),
+
+    getTodayChallenge: protectedProcedure.query(async ({ ctx }) =>
+      getDailyWritingChallengeForUser(ctx.user.id)
+    ),
     
     checkGrammar: protectedProcedure
-      .input(z.object({ content: z.string().min(10).max(5000) }))
+      .input(z.object({ content: trimmedString(10, 5000) }))
       .mutation(async ({ ctx, input }) => {
         // Get user's proficiency level
         const db = await getDb();
@@ -752,7 +757,7 @@ export const appRouter = router({
       }),
     
     submit: protectedProcedure
-      .input(z.object({ challengeId: z.number(), content: z.string().min(10).max(5000) }))
+      .input(z.object({ challengeId: z.number().int().positive(), content: trimmedString(10, 5000) }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
@@ -842,7 +847,7 @@ export const appRouter = router({
   // Study logs router for activity tracking
   studyLog: router({
     listRecent: protectedProcedure
-      .input(z.object({ days: z.number().default(84).optional() }))
+      .input(z.object({ days: z.number().int().min(1).max(365).default(84).optional() }))
       .query(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database not available");

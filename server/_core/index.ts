@@ -11,7 +11,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { initializeScheduler } from "../scheduler";
+import { initializeScheduler, stopScheduler } from "../scheduler";
 import { closeDb } from "../db";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -36,6 +36,7 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
+  let isShuttingDown = false;
   
   // Trust proxy for correct IP and secure cookies when behind reverse proxy
   app.set("trust proxy", 1);
@@ -106,7 +107,13 @@ async function startServer() {
 
   // Graceful shutdown handlers
   const shutdown = async (signal: string) => {
+    if (isShuttingDown) {
+      return;
+    }
+    isShuttingDown = true;
+
     console.log(`[Server] Received ${signal}, shutting down gracefully...`);
+    stopScheduler();
     server.close(async () => {
       console.log("[Server] HTTP server closed");
       await closeDb();

@@ -34,6 +34,48 @@ export interface GeneratedContentData {
   grammar: GrammarItem | null;
 }
 
+function toTrimmedString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizePhrase(input: unknown): PhraseItem | null {
+  const asString = toTrimmedString(input);
+  if (asString) {
+    return { phrase: asString };
+  }
+
+  if (!input || typeof input !== "object") return null;
+  const obj = input as Record<string, unknown>;
+  const phrase = toTrimmedString(obj.phrase);
+  if (!phrase) return null;
+
+  return {
+    phrase,
+    definition: toTrimmedString(obj.definition) ?? undefined,
+    usage: toTrimmedString(obj.usage) ?? undefined,
+  };
+}
+
+function normalizeSentence(input: unknown): SentenceItem | null {
+  const asString = toTrimmedString(input);
+  if (asString) {
+    return { sentence: asString };
+  }
+
+  if (!input || typeof input !== "object") return null;
+  const obj = input as Record<string, unknown>;
+  const sentence = toTrimmedString(obj.sentence);
+  if (!sentence) return null;
+
+  return {
+    sentence,
+    definition: toTrimmedString(obj.definition) ?? undefined,
+    usage: toTrimmedString(obj.usage) ?? undefined,
+  };
+}
+
 /**
  * Transform raw generated content data into structured format
  * Handles missing fields gracefully with strict typing
@@ -69,37 +111,19 @@ export function transformGeneratedContent(data: unknown): GeneratedContentData {
   // Safely extract phrase
   const phrases: PhraseItem[] = [];
   const readingMaterial = dataObj.readingMaterial as Record<string, unknown> | undefined;
-  if (
-    readingMaterial &&
-    typeof readingMaterial === "object" &&
-    "phrase" in readingMaterial &&
-    readingMaterial.phrase
-  ) {
-    const phraseObj = readingMaterial.phrase;
-    if (typeof phraseObj === "object" && "phrase" in phraseObj) {
-      phrases.push({
-        phrase: (phraseObj as { phrase: string }).phrase,
-        definition: (phraseObj as { definition?: string }).definition,
-        usage: (phraseObj as { usage?: string }).usage,
-      });
+  if (readingMaterial && typeof readingMaterial === "object") {
+    const phraseItem = normalizePhrase(readingMaterial.phrase);
+    if (phraseItem) {
+      phrases.push(phraseItem);
     }
   }
 
   // Safely extract sentence
   const sentences: SentenceItem[] = [];
-  if (
-    readingMaterial &&
-    typeof readingMaterial === "object" &&
-    "sentence" in readingMaterial &&
-    readingMaterial.sentence
-  ) {
-    const sentenceObj = readingMaterial.sentence;
-    if (typeof sentenceObj === "object" && "sentence" in sentenceObj) {
-      sentences.push({
-        sentence: (sentenceObj as { sentence: string }).sentence,
-        definition: (sentenceObj as { definition?: string }).definition,
-        usage: (sentenceObj as { usage?: string }).usage,
-      });
+  if (readingMaterial && typeof readingMaterial === "object") {
+    const sentenceItem = normalizeSentence(readingMaterial.sentence);
+    if (sentenceItem) {
+      sentences.push(sentenceItem);
     }
   }
 
@@ -131,8 +155,7 @@ export function transformGeneratedContent(data: unknown): GeneratedContentData {
 export function safeParseJSON(jsonString: string): unknown {
   try {
     return JSON.parse(jsonString);
-  } catch (error) {
-    console.error("JSON parse error:", error);
+  } catch {
     return null;
   }
 }

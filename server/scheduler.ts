@@ -20,20 +20,62 @@ const PROFICIENCY_LEVELS = [
 
 const CONTENT_GENERATION_INTERVAL = 3 * 24 * 60 * 60 * 1000; // 3 days in milliseconds
 const ARCHIVE_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+const CONTENT_CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
+const ARCHIVE_CHECK_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours
+
+let contentGenerationTimer: ReturnType<typeof setInterval> | null = null;
+let archiveTimer: ReturnType<typeof setInterval> | null = null;
+let schedulerInitialized = false;
 
 /**
  * Initialize scheduler (call this when server starts)
  */
 export function initializeScheduler() {
+  if (schedulerInitialized) {
+    console.log("[Scheduler] Scheduler already initialized, skipping duplicate init");
+    return;
+  }
+
   console.log("[Scheduler] Initializing content generation scheduler...");
 
   // Run content generation check every hour
-  setInterval(checkAndGenerateContent, 60 * 60 * 1000);
+  contentGenerationTimer = setInterval(
+    checkAndGenerateContent,
+    CONTENT_CHECK_INTERVAL
+  );
 
   // Run archive check every 6 hours
-  setInterval(checkAndArchiveContent, 6 * 60 * 60 * 1000);
+  archiveTimer = setInterval(checkAndArchiveContent, ARCHIVE_CHECK_INTERVAL);
+
+  schedulerInitialized = true;
 
   console.log("[Scheduler] Scheduler initialized successfully");
+}
+
+/**
+ * Stops scheduler timers so test runs and graceful shutdown can exit cleanly.
+ */
+export function stopScheduler() {
+  if (!schedulerInitialized) {
+    return;
+  }
+
+  if (contentGenerationTimer) {
+    clearInterval(contentGenerationTimer);
+    contentGenerationTimer = null;
+  }
+
+  if (archiveTimer) {
+    clearInterval(archiveTimer);
+    archiveTimer = null;
+  }
+
+  schedulerInitialized = false;
+  console.log("[Scheduler] Scheduler stopped");
+}
+
+export function isSchedulerRunning() {
+  return schedulerInitialized;
 }
 
 /**

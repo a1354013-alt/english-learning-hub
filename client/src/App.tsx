@@ -22,6 +22,7 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
   
   useEffect(() => {
+    if (typeof window === "undefined") return;
     if (!loading && !isAuthenticated) {
       // Redirect to OAuth login portal
       window.location.href = getLoginUrl();

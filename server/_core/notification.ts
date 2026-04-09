@@ -6,8 +6,17 @@ export type NotificationPayload = {
   content: string;
 };
 
-const TITLE_MAX_LENGTH = 1200;
-const CONTENT_MAX_LENGTH = 20000;
+export const NOTIFICATION_LIMITS = {
+  titleMaxLength: 200,
+  contentMaxLength: 5000,
+} as const;
+
+export const NOTIFICATION_VALIDATION_MESSAGES = {
+  titleRequired: "Notification title is required.",
+  contentRequired: "Notification content is required.",
+  titleTooLong: `Notification title must be at most ${NOTIFICATION_LIMITS.titleMaxLength} characters.`,
+  contentTooLong: `Notification content must be at most ${NOTIFICATION_LIMITS.contentMaxLength} characters.`,
+} as const;
 
 const trimValue = (value: string): string => value.trim();
 const isNonEmptyString = (value: unknown): value is string =>
@@ -27,30 +36,30 @@ const validatePayload = (input: NotificationPayload): NotificationPayload => {
   if (!isNonEmptyString(input.title)) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: "Notification title is required.",
+      message: NOTIFICATION_VALIDATION_MESSAGES.titleRequired,
     });
   }
   if (!isNonEmptyString(input.content)) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: "Notification content is required.",
+      message: NOTIFICATION_VALIDATION_MESSAGES.contentRequired,
     });
   }
 
   const title = trimValue(input.title);
   const content = trimValue(input.content);
 
-  if (title.length > TITLE_MAX_LENGTH) {
+  if (title.length > NOTIFICATION_LIMITS.titleMaxLength) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: `Notification title must be at most ${TITLE_MAX_LENGTH} characters.`,
+      message: NOTIFICATION_VALIDATION_MESSAGES.titleTooLong,
     });
   }
 
-  if (content.length > CONTENT_MAX_LENGTH) {
+  if (content.length > NOTIFICATION_LIMITS.contentMaxLength) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: `Notification content must be at most ${CONTENT_MAX_LENGTH} characters.`,
+      message: NOTIFICATION_VALIDATION_MESSAGES.contentTooLong,
     });
   }
 

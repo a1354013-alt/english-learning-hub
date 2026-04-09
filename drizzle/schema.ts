@@ -124,10 +124,21 @@ export const studyLogs = mysqlTable("studyLogs", {
   cardId: int("cardId"), // can be null for non-review activities
   activityType: mysqlEnum("activityType", ["review", "video", "writing", "quiz"]).notNull(),
   quality: int("quality"), // 0-5 quality score (optional, only for review activity)
+  videoId: int("videoId"),
+  checkpointSecond: int("checkpointSecond"),
   xpEarned: int("xpEarned").default(0).notNull(),
   metadata: json("metadata"), // For video: { videoId, checkpointSecond }
   createdAt: timestamp("createdAt").defaultNow().notNull()
-});
+}, (table) => ({
+  userActivityCreatedIdx: index("studyLogs_user_activity_created_idx").on(table.userId, table.activityType, table.createdAt),
+  videoDedupIdx: index("studyLogs_video_dedup_idx").on(
+    table.userId,
+    table.activityType,
+    table.videoId,
+    table.checkpointSecond,
+    table.createdAt
+  ),
+}));
 
 export type StudyLog = typeof studyLogs.$inferSelect;
 export type InsertStudyLog = typeof studyLogs.$inferInsert;
@@ -217,9 +228,15 @@ export const writingChallenges = mysqlTable("writingChallenges", {
     "college",
     "advanced",
   ]).notNull(),
+  activeDate: varchar("activeDate", { length: 10 }).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  levelActiveDateIdx: index("writingChallenges_level_activeDate_idx").on(
+    table.proficiencyLevel,
+    table.activeDate
+  ),
+}));
 
 export type WritingChallenge = typeof writingChallenges.$inferSelect;
 export type InsertWritingChallenge = typeof writingChallenges.$inferInsert;
@@ -377,5 +394,4 @@ export const schedulerState = mysqlTable("schedulerState", {
 
 export type SchedulerState = typeof schedulerState.$inferSelect;
 export type InsertSchedulerState = typeof schedulerState.$inferInsert;
-
 

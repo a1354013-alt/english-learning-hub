@@ -21,15 +21,32 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users } from "lucide-react";
+import {
+  BookOpen,
+  Bot,
+  CalendarDays,
+  History,
+  Home,
+  Library,
+  LogOut,
+  PanelLeft,
+  PenSquare,
+  PlayCircle,
+} from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Page 1", path: "/" },
-  { icon: Users, label: "Page 2", path: "/some-path" },
+  { icon: Home, label: "Home", path: "/" },
+  { icon: BookOpen, label: "SRS Review", path: "/srs" },
+  { icon: PenSquare, label: "Writing", path: "/writing" },
+  { icon: PlayCircle, label: "Video Learning", path: "/videos" },
+  { icon: CalendarDays, label: "Daily Content", path: "/daily-content" },
+  { icon: Bot, label: "AI Course", path: "/ai-course" },
+  { icon: Library, label: "My Courses", path: "/my-courses" },
+  { icon: History, label: "Submission History", path: "/submission-history" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -42,14 +59,30 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [sidebarWidth, setSidebarWidth] = useState(() => {
-    const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
-    return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
-  });
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
   const { loading, user } = useAuth();
 
   useEffect(() => {
-    localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
+    if (typeof window === "undefined") return;
+    try {
+      const saved = window.localStorage.getItem(SIDEBAR_WIDTH_KEY);
+      if (!saved) return;
+      const parsed = Number.parseInt(saved, 10);
+      if (Number.isFinite(parsed) && parsed >= MIN_WIDTH && parsed <= MAX_WIDTH) {
+        setSidebarWidth(parsed);
+      }
+    } catch {
+      // Ignore storage errors in restricted browser modes.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
+    } catch {
+      // Ignore storage errors in restricted browser modes.
+    }
   }, [sidebarWidth]);
 
   if (loading) {

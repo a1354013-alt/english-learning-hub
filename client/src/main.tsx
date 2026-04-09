@@ -11,6 +11,10 @@ import "./index.css";
  * Initialize analytics script dynamically if VITE_ANALYTICS_ENDPOINT is set
  */
 function initializeAnalytics() {
+  if (typeof document === "undefined") {
+    return;
+  }
+
   const endpoint = import.meta.env.VITE_ANALYTICS_ENDPOINT;
   const websiteId = import.meta.env.VITE_ANALYTICS_WEBSITE_ID;
   

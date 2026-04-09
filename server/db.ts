@@ -18,6 +18,7 @@ import {
   learningPaths,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
+import { toTaipeiDateStr } from "./_core/date";
 
 /**
  * Result type for insert operations
@@ -32,13 +33,29 @@ export interface InsertResult {
  * Avoids timezone crossing issues (e.g., 00:xx-07:xx UTC becomes yesterday in UTC)
  */
 export function toDateStr(d: Date): string {
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Taipei',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  return formatter.format(d);
+  return toTaipeiDateStr(d);
+}
+
+function parseDateOnly(dateStr: string): Date {
+  return new Date(`${dateStr}T00:00:00.000+08:00`);
+}
+
+export function calculateNextStreak(
+  currentStreak: number,
+  lastSignInDate: string | null,
+  todayDate: string
+): number {
+  if (!lastSignInDate) return 1;
+  if (lastSignInDate === todayDate) return currentStreak;
+
+  const last = parseDateOnly(lastSignInDate);
+  const today = parseDateOnly(todayDate);
+  const diffDays = Math.floor((today.getTime() - last.getTime()) / 86_400_000);
+
+  if (diffDays === 1) {
+    return currentStreak + 1;
+  }
+  return 1;
 }
 
 let _db: MySql2Database | null = null;
@@ -377,23 +394,18 @@ export async function recordDailySignIn(userId: number) {
   }
 
   const user = userResult[0];
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = toDateStr(yesterday);
-
-  // Check if signed in yesterday
-  const yesterdaySignIn = await db
+  const latestSignIn = await db
     .select()
     .from(dailySignIns)
-    .where(
-      and(
-        eq(dailySignIns.userId, userId),
-        eq(dailySignIns.signInDate, yesterdayStr)
-      )
-    )
+    .where(eq(dailySignIns.userId, userId))
+    .orderBy(desc(dailySignIns.signInDate))
     .limit(1);
 
-  let newStreak = yesterdaySignIn.length > 0 ? user.currentStreak + 1 : 1;
+  const newStreak = calculateNextStreak(
+    user.currentStreak,
+    latestSignIn[0]?.signInDate ?? null,
+    todayStr
+  );
   const newLongestStreak = Math.max(newStreak, user.longestStreak);
 
   // Record sign-in
@@ -580,14 +592,15 @@ export async function archiveGeneratedContent(contentId: number) {
   const db = await getDb();
   if (!db) return null;
 
-  await db
+  const result = await db
     .update(generatedContent)
     .set({
       isArchived: true,
     })
-    .where(eq(generatedContent.id, contentId));
+    .where(and(eq(generatedContent.id, contentId), eq(generatedContent.isArchived, false)));
 
-  return { contentId, success: true };
+  const affected = Number((result as { rowsAffected?: number }).rowsAffected ?? 0);
+  return { contentId, success: affected > 0 };
 }
 
 

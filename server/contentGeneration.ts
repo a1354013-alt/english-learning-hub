@@ -1,6 +1,6 @@
 import { getDb } from "./db";
 import { generatedContent, InsertGeneratedContent } from "../drizzle/schema";
-import { eq, and, lt } from "drizzle-orm";
+import { eq, and, lt, desc } from "drizzle-orm";
 import { toDateStr } from "./db";
 
 /**
@@ -131,6 +131,14 @@ const SENTENCES_POOLS = {
   ],
 };
 
+type GeneratedContentLike = {
+  isArchived: boolean;
+};
+
+export function selectReusableDailyContent<T extends GeneratedContentLike>(items: T[]): T | null {
+  return items.find((item) => item.isArchived === false) ?? null;
+}
+
 export async function generateDailyContent(
   proficiencyLevel: "junior_high" | "senior_high" | "college" | "advanced"
 ) {
@@ -141,19 +149,23 @@ export async function generateDailyContent(
 
   const today = toDateStr(new Date());
 
-  // Check if content already generated for today
+  // Reuse only active (non-archived) content for today.
   const existing = await db
     .select()
     .from(generatedContent)
     .where(
       and(
         eq(generatedContent.generatedDate, today),
-        eq(generatedContent.proficiencyLevel, proficiencyLevel)
+        eq(generatedContent.proficiencyLevel, proficiencyLevel),
+        eq(generatedContent.isArchived, false)
       )
-    );
+    )
+    .orderBy(desc(generatedContent.createdAt))
+    .limit(1);
 
-  if (existing.length > 0) {
-    return existing;
+  const reusable = selectReusableDailyContent(existing);
+  if (reusable) {
+    return reusable;
   }
 
   // Generate new content
@@ -183,10 +195,8 @@ export async function generateDailyContent(
   };
 
   // Insert into database
-  const contentItems = [contentItem];
-  await db.insert(generatedContent).values(contentItems);
-
-  return contentItems;
+  await db.insert(generatedContent).values(contentItem);
+  return contentItem;
 }
 
 /**

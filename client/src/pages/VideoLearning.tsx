@@ -40,6 +40,7 @@ export default function VideoLearning() {
   const youtubeContainerRef = useRef<HTMLDivElement>(null);
   const youtubeAPIReadyRef = useRef(false);
   const youtubeAPIPromiseRef = useRef<Promise<void> | null>(null);
+  const [youtubeLoadError, setYoutubeLoadError] = useState<string | null>(null);
 
   const { data: videosList, isLoading: videosLoading } = trpc.video.list.useQuery(
     { level: undefined },
@@ -119,11 +120,18 @@ export default function VideoLearning() {
 
     if (!w.YT) {
       if (!youtubeAPIPromiseRef.current) {
-        youtubeAPIPromiseRef.current = new Promise<void>((resolve) => {
+        youtubeAPIPromiseRef.current = new Promise<void>((resolve, reject) => {
           w.onYouTubeIframeAPIReady = () => {
             youtubeAPIReadyRef.current = true;
+            setYoutubeLoadError(null);
             resolve();
           };
+
+          setTimeout(() => {
+            if (!youtubeAPIReadyRef.current) {
+              reject(new Error("YouTube player script load timed out."));
+            }
+          }, 15000);
         });
       }
 
@@ -133,10 +141,14 @@ export default function VideoLearning() {
       if (!existingScript) {
         const tag = document.createElement("script");
         tag.src = "https://www.youtube.com/iframe_api";
+        tag.onerror = () => {
+          setYoutubeLoadError("Unable to load YouTube player script.");
+        };
         document.body.appendChild(tag);
       }
     } else {
       youtubeAPIReadyRef.current = true;
+      setYoutubeLoadError(null);
     }
   }, []);
 
@@ -149,7 +161,9 @@ export default function VideoLearning() {
 
     const initializePlayer = async () => {
       if (!youtubeAPIReadyRef.current && youtubeAPIPromiseRef.current) {
-        await youtubeAPIPromiseRef.current;
+        await youtubeAPIPromiseRef.current.catch(() => {
+          throw new Error("YouTube player is not available.");
+        });
       }
 
       if (!isMounted || !youtubeContainerRef.current) return;
@@ -182,7 +196,11 @@ export default function VideoLearning() {
       });
     };
 
-    void initializePlayer();
+    initializePlayer().catch((error: unknown) => {
+      setYoutubeLoadError(
+        error instanceof Error ? error.message : "Unable to initialize YouTube player."
+      );
+    });
 
     return () => {
       isMounted = false;
@@ -301,7 +319,13 @@ export default function VideoLearning() {
                 <div className="aspect-video overflow-hidden rounded-lg bg-black">
                   {videoDetails?.url ? (
                     videoDetails.youtubeId ? (
-                      <div ref={youtubeContainerRef} style={{ width: "100%", height: "100%" }} />
+                      youtubeLoadError ? (
+                        <div className="flex h-full items-center justify-center p-4 text-sm text-muted-foreground">
+                          {youtubeLoadError}
+                        </div>
+                      ) : (
+                        <div ref={youtubeContainerRef} style={{ width: "100%", height: "100%" }} />
+                      )
                     ) : (
                       <video
                         ref={videoRef}

@@ -1,0 +1,10 @@
+.git/
+node_modules/
+.manus/
+.manus-logs/
+dist/
+release/
+*.zip
+desktop.ini
+*.log
+*.tmp

@@ -27,7 +27,7 @@ export default function WritingPractice() {
   } | null>(null);
 
   const { data: challenge, isLoading: challengeLoading } =
-    trpc.writing.getTodayChallenge.useQuery(undefined, {
+    trpc.writing.getDailyChallenge.useQuery(undefined, {
       enabled: isAuthenticated,
     });
 
@@ -122,7 +122,7 @@ export default function WritingPractice() {
             {challengeLoading ? (
               <Card>
                 <CardContent className="pt-6">
-                  <p className="text-muted-foreground">Loading today's prompt...</p>
+                  <p className="text-muted-foreground">Loading daily prompt...</p>
                 </CardContent>
               </Card>
             ) : challenge ? (

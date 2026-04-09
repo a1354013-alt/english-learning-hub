@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,47 @@ interface AiCourse {
   grammar?: GrammarContent;
   readingMaterial?: ReadingMaterial;
   exercises?: Exercise[];
+}
+
+function normalizeAiCourse(input: unknown): AiCourse | null {
+  if (!input || typeof input !== "object") return null;
+
+  const obj = input as Record<string, unknown>;
+  if (
+    typeof obj.id !== "number" ||
+    typeof obj.userId !== "number" ||
+    typeof obj.title !== "string" ||
+    typeof obj.proficiencyLevel !== "string" ||
+    (typeof obj.generatedAt !== "string" && !(obj.generatedAt instanceof Date)) ||
+    typeof obj.isCompleted !== "boolean"
+  ) {
+    return null;
+  }
+
+  return {
+    id: obj.id,
+    userId: obj.userId,
+    title: obj.title,
+    topic: typeof obj.topic === "string" ? obj.topic : undefined,
+    proficiencyLevel: obj.proficiencyLevel as ProficiencyLevel,
+    generatedAt: obj.generatedAt as string | Date,
+    isCompleted: obj.isCompleted,
+    rating: typeof obj.rating === "number" ? obj.rating : null,
+    vocabulary: Array.isArray(obj.vocabulary) ? (obj.vocabulary as VocabularyItem[]) : undefined,
+    grammar: obj.grammar && typeof obj.grammar === "object" ? (obj.grammar as GrammarContent) : undefined,
+    readingMaterial:
+      obj.readingMaterial && typeof obj.readingMaterial === "object"
+        ? (obj.readingMaterial as ReadingMaterial)
+        : undefined,
+    exercises: Array.isArray(obj.exercises) ? (obj.exercises as Exercise[]) : undefined,
+  };
+}
+
+function normalizeAiCourses(input: unknown): AiCourse[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map(normalizeAiCourse)
+    .filter((course): course is AiCourse => course !== null);
 }
 
 const levelLabels: Record<ProficiencyLevel, string> = {
@@ -125,9 +166,7 @@ export default function MyCourses() {
   });
 
   useEffect(() => {
-    if (coursesList) {
-      setCourses(coursesList as unknown as AiCourse[]);
-    }
+    setCourses(normalizeAiCourses(coursesList));
   }, [coursesList]);
 
   if (!isAuthenticated) {
@@ -414,3 +453,5 @@ export default function MyCourses() {
     </div>
   );
 }
+
+

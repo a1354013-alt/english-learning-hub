@@ -111,8 +111,8 @@ export default function Home() {
               <Button size="lg" asChild>
                 <a href={getLoginUrl()}>Start learning</a>
               </Button>
-              <Button size="lg" variant="outline" onClick={() => setLocation("/daily-content")}>
-                Explore sample content
+              <Button size="lg" variant="outline" asChild>
+                <a href={getLoginUrl()}>Sign in for daily content</a>
               </Button>
             </div>
           </div>
