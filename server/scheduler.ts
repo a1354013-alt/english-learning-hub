@@ -22,6 +22,7 @@ const CONTENT_GENERATION_INTERVAL = 3 * 24 * 60 * 60 * 1000; // 3 days in millis
 const ARCHIVE_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 const CONTENT_CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
 const ARCHIVE_CHECK_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours
+const STALE_TASK_THRESHOLD = 30 * 60 * 1000; // 30 minutes
 
 let contentGenerationTimer: ReturnType<typeof setInterval> | null = null;
 let archiveTimer: ReturnType<typeof setInterval> | null = null;
@@ -105,17 +106,19 @@ async function checkAndGenerateContent() {
         ? new Date(lastState.lastExecutedAt)
         : new Date(0);
       const timeSinceLastGeneration = now.getTime() - lastExecutedAt.getTime();
+      const isRunning = lastState?.status === "running";
+      const isStaleRunning =
+        isRunning && now.getTime() - lastExecutedAt.getTime() > STALE_TASK_THRESHOLD;
 
-      if (timeSinceLastGeneration >= CONTENT_GENERATION_INTERVAL) {
-        // Skip if already running (prevents duplicate execution in multi-instance deployments)
-        if (lastState?.status === "running") {
-          console.log(
-            `[Scheduler] Task ${taskName} is already running, skipping...`
-          );
-          continue;
-        }
+      if (isRunning && !isStaleRunning) {
+        console.log(
+          `[Scheduler] Task ${taskName} is still running, skipping...`
+        );
+        continue;
+      }
 
-        // Mark as running
+      if (timeSinceLastGeneration >= CONTENT_GENERATION_INTERVAL || isStaleRunning) {
+        // Mark as running (or recover from stale running state)
         await db
           .insert(schedulerState)
           .values({
@@ -200,20 +203,22 @@ async function checkAndArchiveContent() {
       .limit(1);
 
     const lastState = state[0];
-    // Skip if already running (prevents duplicate execution in multi-instance deployments)
-    if (lastState?.status === "running") {
-      console.log(
-        `[Scheduler] Task ${taskName} is already running, skipping...`
-      );
-      return;
-    }
-
     const lastExecutedAt = lastState?.lastExecutedAt
       ? new Date(lastState.lastExecutedAt)
       : new Date(0);
     const timeSinceLastArchive = now.getTime() - lastExecutedAt.getTime();
+    const isRunning = lastState?.status === "running";
+    const isStaleRunning =
+      isRunning && now.getTime() - lastExecutedAt.getTime() > STALE_TASK_THRESHOLD;
 
-    if (timeSinceLastArchive >= ARCHIVE_INTERVAL) {
+    if (isRunning && !isStaleRunning) {
+      console.log(
+        `[Scheduler] Task ${taskName} is still running, skipping...`
+      );
+      return;
+    }
+
+    if (timeSinceLastArchive >= ARCHIVE_INTERVAL || isStaleRunning) {
       // Mark as running
       await db
         .insert(schedulerState)

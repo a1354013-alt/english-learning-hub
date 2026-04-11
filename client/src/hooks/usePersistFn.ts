@@ -1,20 +1,10 @@
-import { useRef } from "react";
+import { useCallback, useRef } from "react";
 
-type noop = (...args: any[]) => any;
-
-/**
- * usePersistFn instead of useCallback to reduce cognitive load
- */
-export function usePersistFn<T extends noop>(fn: T) {
+export function usePersistFn<T extends (...args: any[]) => any>(fn: T): T {
   const fnRef = useRef<T>(fn);
   fnRef.current = fn;
 
-  const persistFn = useRef<T>(null);
-  if (!persistFn.current) {
-    persistFn.current = function (this: unknown, ...args) {
-      return fnRef.current!.apply(this, args);
-    } as T;
-  }
-
-  return persistFn.current!;
+  return useCallback(((...args: Parameters<T>) => {
+    return fnRef.current(...args);
+  }) as T, []);
 }

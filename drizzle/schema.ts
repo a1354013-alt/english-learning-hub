@@ -152,7 +152,9 @@ export const dailySignIns = mysqlTable("dailySignIns", {
   signInDate: varchar("signInDate", { length: 10 }).notNull(), // Unified field name
   xpEarned: int("xpEarned").default(10).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => ({
+  userDateIdx: index("dailySignIns_user_date_idx").on(table.userId, table.signInDate),
+}));
 
 export type DailySignIn = typeof dailySignIns.$inferSelect;
 export type InsertDailySignIn = typeof dailySignIns.$inferInsert;
@@ -203,7 +205,9 @@ export const videos = mysqlTable("videos", {
   transcript: json("transcript"), // Array of subtitle objects: [{start: number, end: number, text: string}]
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  youtubeIdIdx: index("videos_youtubeId_idx").on(table.youtubeId),
+}));
 
 export type Video = typeof videos.$inferSelect;
 export type InsertVideo = typeof videos.$inferInsert;
@@ -236,6 +240,11 @@ export const writingChallenges = mysqlTable("writingChallenges", {
     table.proficiencyLevel,
     table.activeDate
   ),
+  titleLevelDateIdx: index("writingChallenges_title_level_date_idx").on(
+    table.proficiencyLevel,
+    table.activeDate,
+    table.title
+  ),
 }));
 
 export type WritingChallenge = typeof writingChallenges.$inferSelect;
@@ -255,7 +264,12 @@ export const writingSubmissions = mysqlTable("writingSubmissions", {
   xpEarned: int("xpEarned").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  userChallengeIdx: index("writingSubmissions_user_challenge_idx").on(
+    table.userId,
+    table.challengeId
+  ),
+}));
 
 export type WritingSubmission = typeof writingSubmissions.$inferSelect;
 export type InsertWritingSubmission = typeof writingSubmissions.$inferInsert;
@@ -287,7 +301,13 @@ export const generatedContent = mysqlTable("generatedContent", {
   isArchived: boolean("isArchived").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  generatedDateLevelIdx: uniqueIndex("generatedContent_date_level_unique").on(
+    table.generatedDate,
+    table.proficiencyLevel
+  ),
+  archivedIdx: index("generatedContent_isArchived_idx").on(table.isArchived),
+}));
 
 export type GeneratedContent = typeof generatedContent.$inferSelect;
 export type InsertGeneratedContent = typeof generatedContent.$inferInsert;
@@ -311,7 +331,13 @@ export const contentArchive = mysqlTable("contentArchive", {
   readingMaterial: json("readingMaterial"),
   exercises: json("exercises"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => ({
+  userGeneratedDateIdx: index("contentArchive_user_generated_date_idx").on(
+    table.userId,
+    table.generatedDate,
+    table.proficiencyLevel
+  ),
+}));
 
 export type ContentArchive = typeof contentArchive.$inferSelect;
 export type InsertContentArchive = typeof contentArchive.$inferInsert;
@@ -372,7 +398,12 @@ export const aiCourses = mysqlTable("aiCourses", {
   generatedAt: timestamp("generatedAt").defaultNow().notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  userGeneratedAtIdx: index("aiCourses_user_generatedAt_idx").on(
+    table.userId,
+    table.generatedAt
+  ),
+}));
 
 export type AiCourse = typeof aiCourses.$inferSelect;
 export type InsertAiCourse = typeof aiCourses.$inferInsert;

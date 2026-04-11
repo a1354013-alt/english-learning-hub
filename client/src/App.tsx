@@ -12,6 +12,7 @@ import DailyContent from "./pages/DailyContent";
 import AICourseGenerator from "./pages/AICourseGenerator";
 import MyCourses from "./pages/MyCourses";
 import SubmissionHistory from "./pages/SubmissionHistory";
+import DashboardLayout from "./components/DashboardLayout";
 import { useAuth } from "./_core/hooks/useAuth";
 
 import { useEffect } from "react";
@@ -19,16 +20,11 @@ import { getLoginUrl } from "./const";
 
 // Protected route wrapper that redirects to OAuth if not authenticated
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, loading } = useAuth();
-  
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!loading && !isAuthenticated) {
-      // Redirect to OAuth login portal
-      window.location.href = getLoginUrl();
-    }
-  }, [isAuthenticated, loading]);
-  
+  const { isAuthenticated, loading } = useAuth({
+    redirectOnUnauthenticated: true,
+    redirectUrl: getLoginUrl(),
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -36,12 +32,12 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  
+
   if (!isAuthenticated) {
     return null;
   }
-  
-  return <>{children}</>;
+
+  return <DashboardLayout>{children}</DashboardLayout>;
 }
 
 function Router() {

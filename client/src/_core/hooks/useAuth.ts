@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 type UseAuthOptions = {
   redirectOnUnauthenticated?: boolean;
-  redirectPath?: string;
+  redirectUrl?: string;
 };
 
 const STORAGE_KEY = "manus-runtime-user-info";
@@ -41,7 +41,7 @@ export function persistUserSnapshot(
 }
 
 export function useAuth(options?: UseAuthOptions) {
-  const { redirectOnUnauthenticated = false, redirectPath = getLoginUrl() } =
+  const { redirectOnUnauthenticated = false, redirectUrl = getLoginUrl() } =
     options ?? {};
   const utils = trpc.useUtils();
   const [storedUserSnapshot, setStoredUserSnapshot] = useState<StoredUser>(null);
@@ -107,12 +107,19 @@ export function useAuth(options?: UseAuthOptions) {
     if (meQuery.isLoading || logoutMutation.isPending) return;
     if (state.user) return;
     if (typeof window === "undefined") return;
-    if (window.location.pathname === redirectPath) return;
 
-    window.location.href = redirectPath;
+    const currentLocation = window.location.pathname + window.location.search;
+    if (
+      currentLocation === redirectUrl ||
+      window.location.href === redirectUrl
+    ) {
+      return;
+    }
+
+    window.location.href = redirectUrl;
   }, [
     redirectOnUnauthenticated,
-    redirectPath,
+    redirectUrl,
     logoutMutation.isPending,
     meQuery.isLoading,
     state.user,

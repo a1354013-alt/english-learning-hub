@@ -139,6 +139,25 @@ export function selectReusableDailyContent<T extends GeneratedContentLike>(items
   return items.find((item) => item.isArchived === false) ?? null;
 }
 
+/**
+ * Generate a deterministic index based on date and level
+ */
+function getDeterministicIndex(date: Date, level: string, poolLength: number): number {
+  const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+  const seed = `${dateStr}-${level}`;
+  
+  // Simple hash function for deterministic seeding
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  
+  // Ensure positive index
+  return Math.abs(hash) % poolLength;
+}
+
 export async function generateDailyContent(
   proficiencyLevel: "junior_high" | "senior_high" | "college" | "advanced"
 ) {
@@ -168,21 +187,29 @@ export async function generateDailyContent(
     return reusable;
   }
 
-  // Generate new content
+  // Generate new content using deterministic selection
   const vocabPool = VOCABULARY_POOLS[proficiencyLevel];
   const phrasePool = PHRASES_POOLS[proficiencyLevel];
   const sentencePool = SENTENCES_POOLS[proficiencyLevel];
-
-  // Pick random vocabulary
-  const vocab = vocabPool[Math.floor(Math.random() * vocabPool.length)];
-  // Pick random phrase
-  const phrase = phrasePool[Math.floor(Math.random() * phrasePool.length)];
-  // Pick random sentence
-  const sentence = sentencePool[Math.floor(Math.random() * sentencePool.length)];
-
-  // Pick random grammar
   const grammarPool = GRAMMAR_POOLS[proficiencyLevel];
-  const grammar = grammarPool[Math.floor(Math.random() * grammarPool.length)];
+
+  const todayDate = new Date();
+
+  // Pick deterministic vocabulary
+  const vocabIndex = getDeterministicIndex(todayDate, `${proficiencyLevel}-vocab`, vocabPool.length);
+  const vocab = vocabPool[vocabIndex];
+  
+  // Pick deterministic phrase
+  const phraseIndex = getDeterministicIndex(todayDate, `${proficiencyLevel}-phrase`, phrasePool.length);
+  const phrase = phrasePool[phraseIndex];
+  
+  // Pick deterministic sentence
+  const sentenceIndex = getDeterministicIndex(todayDate, `${proficiencyLevel}-sentence`, sentencePool.length);
+  const sentence = sentencePool[sentenceIndex];
+
+  // Pick deterministic grammar
+  const grammarIndex = getDeterministicIndex(todayDate, `${proficiencyLevel}-grammar`, grammarPool.length);
+  const grammar = grammarPool[grammarIndex];
 
   const contentItem: InsertGeneratedContent = {
     proficiencyLevel,
@@ -194,9 +221,30 @@ export async function generateDailyContent(
     exercises: [],
   };
 
-  // Insert into database
-  await db.insert(generatedContent).values(contentItem);
-  return contentItem;
+  // Insert into database with idempotent behavior for duplicate daily content.
+  await db
+    .insert(generatedContent)
+    .values(contentItem)
+    .onDuplicateKeyUpdate({
+      set: {
+        updatedAt: new Date(),
+      },
+    });
+
+  const inserted = await db
+    .select()
+    .from(generatedContent)
+    .where(
+      and(
+        eq(generatedContent.generatedDate, today),
+        eq(generatedContent.proficiencyLevel, proficiencyLevel),
+        eq(generatedContent.isArchived, false)
+      )
+    )
+    .orderBy(desc(generatedContent.createdAt))
+    .limit(1);
+
+  return inserted[0] ?? contentItem;
 }
 
 /**

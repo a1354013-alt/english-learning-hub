@@ -19,6 +19,81 @@ The app combines SRS flashcards, daily generated study content, writing practice
 - `drizzle/`: schema and SQL migrations
 - `patches/`: pnpm patched dependencies
 
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- pnpm
+- MySQL-compatible database (MySQL, TiDB, etc.)
+- Ollama (for AI features)
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd english-learning-hub
+   ```
+
+2. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+
+3. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+   Edit `.env` with your configuration (see Environment Variables section below).
+
+4. Set up the database:
+   ```bash
+   # Generate and run migrations
+   pnpm db:push
+
+   # Seed initial data (optional)
+   pnpm db:seed
+   ```
+
+5. Start Ollama (for AI features):
+   ```bash
+   ollama serve
+   ```
+
+### Development
+
+Start the development server:
+```bash
+pnpm dev
+```
+
+The app will be available at `http://localhost:3000`.
+
+### Building
+
+Build for production:
+```bash
+pnpm build
+```
+
+Start production server:
+```bash
+pnpm start
+```
+
+### Testing
+
+Run tests:
+```bash
+pnpm test
+```
+
+Run type checking:
+```bash
+pnpm check
+```
+
 ## Environment Variables
 
 Copy `.env.example` and set values for your environment.
@@ -48,6 +123,62 @@ Copy `.env.example` and set values for your environment.
 ## Runtime Environment Matrix
 
 - `test`: minimally needs `NODE_ENV=test` (the server env loader provides deterministic test defaults for required auth/db variables)
+
+## Database Management
+
+### Migrations
+
+Generate new migration after schema changes:
+```bash
+pnpm db:generate
+```
+
+Apply migrations:
+```bash
+pnpm db:migrate
+```
+
+Or do both:
+```bash
+pnpm db:push
+```
+
+### Seeding
+
+Seed the database with initial data:
+```bash
+pnpm db:seed
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Database connection fails**: Ensure your `DATABASE_URL` is correct and the database is running.
+
+2. **OAuth login not working**: Check that `VITE_APP_ID`, `OAUTH_SERVER_URL`, and `APP_ORIGIN` are properly configured.
+
+3. **AI features not working**: Make sure Ollama is running and accessible at `OLLAMA_BASE_URL`.
+
+4. **Build fails**: Ensure all dependencies are installed with `pnpm install`.
+
+### Development Tips
+
+- Use `pnpm check` to run TypeScript type checking
+- Tests are located in `*.test.ts` files and can be run with `pnpm test`
+- The app uses hot reloading in development mode
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests and type checking
+5. Submit a pull request
+
+## License
+
+MIT
 - `development`: requires full OAuth + DB variables (`DATABASE_URL`, `JWT_SECRET`, `VITE_APP_ID`, `OAUTH_SERVER_URL`, `VITE_OAUTH_PORTAL_URL`, `APP_ORIGIN`)
 - `production`: same as development, plus production-safe values for `APP_ORIGIN`, cookie secret, and optional observability variables
 

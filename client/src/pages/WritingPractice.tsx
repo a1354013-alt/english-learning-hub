@@ -5,7 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, ArrowLeft, BookOpen, CheckCircle } from "lucide-react";
+import { AlertCircle, BookOpen, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface GrammarCorrection {
@@ -27,7 +27,7 @@ export default function WritingPractice() {
   } | null>(null);
 
   const { data: challenge, isLoading: challengeLoading } =
-    trpc.writing.getDailyChallenge.useQuery(undefined, {
+    trpc.writing.getTodayChallenge.useQuery(undefined, {
       enabled: isAuthenticated,
     });
 
@@ -96,19 +96,6 @@ export default function WritingPractice() {
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-sm">
-        <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-accent" />
-            <span className="text-lg font-bold">English Learning Hub</span>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => setLocation("/")}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to home
-          </Button>
-        </div>
-      </nav>
-
       <div className="container max-w-4xl space-y-8 py-8">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">Writing practice</h1>
