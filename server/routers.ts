@@ -19,7 +19,7 @@ import {
 import { TRPCError } from "@trpc/server";
 import { generateDailyContent, archiveOldContent } from "./contentGeneration";
 import { normalizeCheckpointSecond, shouldDeduplicateVideoProgress } from "./videoProgress";
-import { challengeIndexForDate } from "./writingChallenge";
+import { selectDailyWritingChallenge } from "./writingChallenge";
 import { getSRSStats } from "./db";
 import { generateEnglishCourse, generateWritingFeedback } from "./ollama";
 import { saveAiCourse, getAiCourses, deleteAiCourse, markCourseCompleted, rateCourse, addCourseNotes } from "./db";
@@ -101,8 +101,12 @@ async function getDailyWritingChallengeForUser(userId: number) {
     throw new TRPCError({ code: "NOT_FOUND", message: "No writing challenges available" });
   }
 
-  const index = challengeIndexForDate(today, levelChallenges.length);
-  return levelChallenges[index];
+  const selectedChallenge = selectDailyWritingChallenge(today, userLevel, levelChallenges);
+  if (!selectedChallenge) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "No writing challenges available" });
+  }
+
+  return selectedChallenge;
 }
 
 export const appRouter = router({

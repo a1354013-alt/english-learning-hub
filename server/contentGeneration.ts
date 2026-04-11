@@ -139,6 +139,37 @@ export function selectReusableDailyContent<T extends GeneratedContentLike>(items
   return items.find((item) => item.isArchived === false) ?? null;
 }
 
+export function createDailyContentPayload(
+  proficiencyLevel: "junior_high" | "senior_high" | "college" | "advanced",
+  date: Date = new Date()
+): InsertGeneratedContent {
+  const today = date;
+  const todayStr = toDateStr(today);
+
+  const vocabPool = VOCABULARY_POOLS[proficiencyLevel];
+  const phrasePool = PHRASES_POOLS[proficiencyLevel];
+  const sentencePool = SENTENCES_POOLS[proficiencyLevel];
+  const grammarPool = GRAMMAR_POOLS[proficiencyLevel];
+
+  const vocabIndex = getDeterministicIndex(today, `${proficiencyLevel}-vocab`, vocabPool.length);
+  const phraseIndex = getDeterministicIndex(today, `${proficiencyLevel}-phrase`, phrasePool.length);
+  const sentenceIndex = getDeterministicIndex(today, `${proficiencyLevel}-sentence`, sentencePool.length);
+  const grammarIndex = getDeterministicIndex(today, `${proficiencyLevel}-grammar`, grammarPool.length);
+
+  return {
+    proficiencyLevel,
+    generatedDate: todayStr,
+    isArchived: false,
+    vocabulary: [vocabPool[vocabIndex]],
+    grammar: grammarPool[grammarIndex],
+    readingMaterial: {
+      phrase: phrasePool[phraseIndex],
+      sentence: sentencePool[sentenceIndex],
+    },
+    exercises: [],
+  };
+}
+
 /**
  * Generate a deterministic index based on date and level
  */
@@ -188,38 +219,9 @@ export async function generateDailyContent(
   }
 
   // Generate new content using deterministic selection
-  const vocabPool = VOCABULARY_POOLS[proficiencyLevel];
-  const phrasePool = PHRASES_POOLS[proficiencyLevel];
-  const sentencePool = SENTENCES_POOLS[proficiencyLevel];
-  const grammarPool = GRAMMAR_POOLS[proficiencyLevel];
-
   const todayDate = new Date();
 
-  // Pick deterministic vocabulary
-  const vocabIndex = getDeterministicIndex(todayDate, `${proficiencyLevel}-vocab`, vocabPool.length);
-  const vocab = vocabPool[vocabIndex];
-  
-  // Pick deterministic phrase
-  const phraseIndex = getDeterministicIndex(todayDate, `${proficiencyLevel}-phrase`, phrasePool.length);
-  const phrase = phrasePool[phraseIndex];
-  
-  // Pick deterministic sentence
-  const sentenceIndex = getDeterministicIndex(todayDate, `${proficiencyLevel}-sentence`, sentencePool.length);
-  const sentence = sentencePool[sentenceIndex];
-
-  // Pick deterministic grammar
-  const grammarIndex = getDeterministicIndex(todayDate, `${proficiencyLevel}-grammar`, grammarPool.length);
-  const grammar = grammarPool[grammarIndex];
-
-  const contentItem: InsertGeneratedContent = {
-    proficiencyLevel,
-    generatedDate: today,
-    isArchived: false,
-    vocabulary: [vocab],
-    grammar: grammar,
-    readingMaterial: { phrase, sentence },
-    exercises: [],
-  };
+  const contentItem = createDailyContentPayload(proficiencyLevel, todayDate);
 
   // Insert into database with idempotent behavior for duplicate daily content.
   await db

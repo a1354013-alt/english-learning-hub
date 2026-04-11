@@ -17,3 +17,37 @@ export function challengeIndexForDate(
   const daysSinceEpoch = dayNumberForTaipeiDate(date);
   return Math.abs(daysSinceEpoch) % challengeCount;
 }
+
+export type WritingChallengeChoice = {
+  id: number;
+  proficiencyLevel: "junior_high" | "senior_high" | "college" | "advanced";
+  activeDate: string;
+};
+
+export function selectDailyWritingChallenge<T extends WritingChallengeChoice>(
+  today: Date,
+  proficiencyLevel: T["proficiencyLevel"],
+  challenges: T[]
+): T | null {
+  const todayDate = toTaipeiDateStr(today);
+  const directMatch = challenges.find(
+    (challenge) =>
+      challenge.proficiencyLevel === proficiencyLevel &&
+      challenge.activeDate === todayDate
+  );
+
+  if (directMatch) {
+    return directMatch;
+  }
+
+  const levelChallenges = challenges
+    .filter((challenge) => challenge.proficiencyLevel === proficiencyLevel)
+    .sort((a, b) => a.id - b.id);
+
+  if (levelChallenges.length === 0) {
+    return null;
+  }
+
+  const index = challengeIndexForDate(today, levelChallenges.length);
+  return levelChallenges[index];
+}

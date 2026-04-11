@@ -19,7 +19,8 @@ ALTER TABLE `writingSubmissions`
   ADD COLUMN IF NOT EXISTS `feedback` text AFTER `content`;
 
 ALTER TABLE `aiCourses`
-  ADD COLUMN IF NOT EXISTS `description` text AFTER `topic`;
+  ADD COLUMN IF NOT EXISTS `description` text AFTER `topic`,
+  ADD COLUMN IF NOT EXISTS `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER `createdAt`;
 
 ALTER TABLE `videos`
   ADD COLUMN IF NOT EXISTS `url` varchar(512) NOT NULL DEFAULT '' AFTER `description`;
@@ -37,7 +38,8 @@ ALTER TABLE `generatedContent`
   ADD COLUMN IF NOT EXISTS `vocabulary` json NULL AFTER `proficiencyLevel`,
   ADD COLUMN IF NOT EXISTS `grammar` json NULL AFTER `vocabulary`,
   ADD COLUMN IF NOT EXISTS `readingMaterial` json NULL AFTER `grammar`,
-  ADD COLUMN IF NOT EXISTS `exercises` json NULL AFTER `readingMaterial`;
+  ADD COLUMN IF NOT EXISTS `exercises` json NULL AFTER `readingMaterial`,
+  ADD COLUMN IF NOT EXISTS `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER `createdAt`;
 
 UPDATE `generatedContent`
 SET `vocabulary` = JSON_ARRAY(JSON_OBJECT('word', `content`, 'definition', `definition`, 'usage', `exampleUsage`))

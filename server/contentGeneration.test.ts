@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { selectReusableDailyContent, generateDailyContent } from "./contentGeneration";
+import { selectReusableDailyContent, createDailyContentPayload } from "./contentGeneration";
 
 describe("selectReusableDailyContent", () => {
   it("reuses non-archived content", () => {
@@ -21,19 +21,21 @@ describe("selectReusableDailyContent", () => {
   });
 });
 
-describe("generateDailyContent", () => {
-  it("generates deterministic content for same date and level", async () => {
-    const content1 = await generateDailyContent("junior_high");
-    const content2 = await generateDailyContent("junior_high");
+describe("createDailyContentPayload", () => {
+  it("generates deterministic content for the same date and level", () => {
+    const referenceDate = new Date("2026-04-09T00:00:00.000+08:00");
+    const content1 = createDailyContentPayload("junior_high", referenceDate);
+    const content2 = createDailyContentPayload("junior_high", referenceDate);
 
     expect(content1.vocabulary).toEqual(content2.vocabulary);
     expect(content1.grammar).toEqual(content2.grammar);
     expect(content1.readingMaterial).toEqual(content2.readingMaterial);
   });
 
-  it("generates different content for different levels", async () => {
-    const juniorContent = await generateDailyContent("junior_high");
-    const seniorContent = await generateDailyContent("senior_high");
+  it("generates different content for different proficiency levels on same date", () => {
+    const referenceDate = new Date("2026-04-09T00:00:00.000+08:00");
+    const juniorContent = createDailyContentPayload("junior_high", referenceDate);
+    const seniorContent = createDailyContentPayload("senior_high", referenceDate);
 
     expect(juniorContent.vocabulary).not.toEqual(seniorContent.vocabulary);
   });
