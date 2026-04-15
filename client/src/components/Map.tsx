@@ -96,7 +96,9 @@ let mapScriptPromise: Promise<void> | null = null;
 
 function loadMapScript() {
   if (typeof window === "undefined" || typeof document === "undefined") {
-    return Promise.reject(new Error("Google Maps can only load in a browser environment."));
+    return Promise.reject(
+      new Error("Google Maps can only load in a browser environment.")
+    );
   }
 
   if (window.google?.maps) {
@@ -171,7 +173,9 @@ export function MapView({
   useEffect(() => {
     void init().catch((error: unknown) => {
       const message =
-        error instanceof Error ? error.message : "Failed to initialize Google Maps.";
+        error instanceof Error
+          ? error.message
+          : "Failed to initialize Google Maps.";
       setLoadError(message);
     });
   }, [init]);
@@ -189,5 +193,7 @@ export function MapView({
     );
   }
 
-  return <div ref={mapContainer} className={cn("w-full h-[500px]", className)} />;
+  return (
+    <div ref={mapContainer} className={cn("w-full h-[500px]", className)} />
+  );
 }

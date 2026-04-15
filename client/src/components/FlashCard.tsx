@@ -47,18 +47,20 @@ export function FlashCard({
     <div className="flex flex-col items-center gap-6">
       <div
         className="flashcard cursor-pointer"
-        onClick={() => setIsFlipped((value) => !value)}
+        onClick={() => setIsFlipped(value => !value)}
       >
         <div className="text-center">
           {!isFlipped ? (
             <div className="space-y-4">
               <div className="flashcard-front">{frontText}</div>
               {phonetic ? (
-                <div className="text-sm text-muted-foreground">/{phonetic}/</div>
+                <div className="text-sm text-muted-foreground">
+                  /{phonetic}/
+                </div>
               ) : null}
               {audioUrl ? (
                 <button
-                  onClick={(event) => {
+                  onClick={event => {
                     event.stopPropagation();
                     playAudio();
                   }}

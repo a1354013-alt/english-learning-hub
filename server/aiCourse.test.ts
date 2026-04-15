@@ -1,8 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  generateEnglishCourse,
-  isOllamaAvailable,
-} from "./ollama";
+import { isOllamaAvailable } from "./ollama";
 
 // Mock axios to avoid actual HTTP calls
 vi.mock("axios");
@@ -16,9 +13,6 @@ describe("AI Course Generation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-
-  // Skip Ollama tests if service is not available
-  const skipOllamaTests = true; // Set to false when testing with actual Ollama
 
   describe("isOllamaAvailable", () => {
     it("should return boolean status", async () => {
@@ -93,7 +87,7 @@ describe("AI Course Generation", () => {
         "advanced",
       ] as const;
 
-      levels.forEach((level) => {
+      levels.forEach(level => {
         expect(["junior_high", "senior_high", "college", "advanced"]).toContain(
           level
         );
@@ -103,7 +97,7 @@ describe("AI Course Generation", () => {
     it("should handle optional topic parameter", () => {
       const topics = ["Business English", "Travel Phrases", undefined];
 
-      topics.forEach((topic) => {
+      topics.forEach(topic => {
         if (topic) {
           expect(typeof topic).toBe("string");
           expect(topic.length).toBeGreaterThan(0);
@@ -137,7 +131,8 @@ describe("AI Course Generation", () => {
         question: "What does example mean?",
         options: ["A. A test", "B. A thing", "C. A mistake", "D. A book"],
         answer: "B",
-        explanation: "The correct answer is B because it matches the definition",
+        explanation:
+          "The correct answer is B because it matches the definition",
       };
 
       expect(exercise.type).toMatch(/multiple_choice|fill_blank|translation/);

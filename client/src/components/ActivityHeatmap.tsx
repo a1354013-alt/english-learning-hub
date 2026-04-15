@@ -22,7 +22,7 @@ export function ActivityHeatmap({
   title = "Study activity in the last 12 weeks",
 }: ActivityHeatmapProps) {
   const weeks = useMemo(() => {
-    const dateMap = new Map(data.map((entry) => [entry.date, entry.count]));
+    const dateMap = new Map(data.map(entry => [entry.date, entry.count]));
     const result: HeatmapData[][] = [];
     const today = new Date();
 

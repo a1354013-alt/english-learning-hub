@@ -35,11 +35,11 @@ import {
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
+import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 
 const menuItems = [
-  { icon: Home, label: "Home", path: "/" },
+  { icon: Home, label: "Home", path: "/dashboard" },
   { icon: BookOpen, label: "SRS Review", path: "/srs" },
   { icon: PenSquare, label: "Writing", path: "/writing" },
   { icon: PlayCircle, label: "Video Learning", path: "/videos" },
@@ -68,7 +68,11 @@ export default function DashboardLayout({
       const saved = window.localStorage.getItem(SIDEBAR_WIDTH_KEY);
       if (!saved) return;
       const parsed = Number.parseInt(saved, 10);
-      if (Number.isFinite(parsed) && parsed >= MIN_WIDTH && parsed <= MAX_WIDTH) {
+      if (
+        Number.isFinite(parsed) &&
+        parsed >= MIN_WIDTH &&
+        parsed <= MAX_WIDTH
+      ) {
         setSidebarWidth(parsed);
       }
     } catch {
@@ -86,7 +90,7 @@ export default function DashboardLayout({
   }, [sidebarWidth]);
 
   if (loading) {
-    return <DashboardLayoutSkeleton />
+    return <DashboardLayoutSkeleton />;
   }
 
   if (!user) {
@@ -98,7 +102,8 @@ export default function DashboardLayout({
               Sign in to continue
             </h1>
             <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Access to this dashboard requires authentication. Continue to launch the login flow.
+              Access to this dashboard requires authentication. Continue to
+              launch the login flow.
             </p>
           </div>
           <Button

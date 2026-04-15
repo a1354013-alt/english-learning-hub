@@ -4,7 +4,10 @@ export function usePersistFn<T extends (...args: any[]) => any>(fn: T): T {
   const fnRef = useRef<T>(fn);
   fnRef.current = fn;
 
-  return useCallback(((...args: Parameters<T>) => {
-    return fnRef.current(...args);
-  }) as T, []);
+  return useCallback(
+    ((...args: Parameters<T>) => {
+      return fnRef.current(...args);
+    }) as T,
+    []
+  );
 }

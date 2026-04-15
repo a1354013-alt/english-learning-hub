@@ -16,7 +16,9 @@ type StoredUser = {
   email?: string | null;
 } | null;
 
-export function getStoredUserSnapshot(storageLike: Pick<Storage, "getItem"> | null): StoredUser {
+export function getStoredUserSnapshot(
+  storageLike: Pick<Storage, "getItem"> | null
+): StoredUser {
   if (!storageLike) return null;
   const raw = storageLike.getItem(STORAGE_KEY);
   if (!raw) return null;
@@ -44,7 +46,8 @@ export function useAuth(options?: UseAuthOptions) {
   const { redirectOnUnauthenticated = false, redirectUrl = getLoginUrl() } =
     options ?? {};
   const utils = trpc.useUtils();
-  const [storedUserSnapshot, setStoredUserSnapshot] = useState<StoredUser>(null);
+  const [storedUserSnapshot, setStoredUserSnapshot] =
+    useState<StoredUser>(null);
 
   const meQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
@@ -75,7 +78,8 @@ export function useAuth(options?: UseAuthOptions) {
   }, [logoutMutation, utils]);
 
   const state = useMemo(() => {
-    const user = meQuery.data ?? (meQuery.isLoading ? storedUserSnapshot : null);
+    const user =
+      meQuery.data ?? (meQuery.isLoading ? storedUserSnapshot : null);
     return {
       user,
       loading: meQuery.isLoading || logoutMutation.isPending,

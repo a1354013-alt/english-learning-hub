@@ -19,16 +19,14 @@ export default function SRSReview() {
   const [, setLocation] = useLocation();
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
 
-  const { data: dueCards, isLoading: cardsLoading } = trpc.srs.getDueCards.useQuery(
-    { limit: 20 },
-    { enabled: isAuthenticated }
-  );
+  const { data: dueCards, isLoading: cardsLoading } =
+    trpc.srs.getDueCards.useQuery({ limit: 20 }, { enabled: isAuthenticated });
 
   const reviewMutation = trpc.srs.reviewCard.useMutation({
     onSuccess: () => {
       if (!dueCards) return;
       if (currentCardIndex < dueCards.length - 1) {
-        setCurrentCardIndex((value) => value + 1);
+        setCurrentCardIndex(value => value + 1);
       } else {
         setCurrentCardIndex(-1);
       }
@@ -36,7 +34,11 @@ export default function SRSReview() {
   });
 
   const handleReview = (quality: number) => {
-    if (!dueCards || currentCardIndex < 0 || currentCardIndex >= dueCards.length) {
+    if (
+      !dueCards ||
+      currentCardIndex < 0 ||
+      currentCardIndex >= dueCards.length
+    ) {
       return;
     }
 
@@ -71,7 +73,11 @@ export default function SRSReview() {
               <BookOpen className="h-6 w-6 text-accent" />
               <span className="text-lg font-bold">English Learning Hub</span>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setLocation("/")}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLocation("/")}
+            >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to home
             </Button>
@@ -81,11 +87,14 @@ export default function SRSReview() {
         <div className="container flex min-h-[calc(100vh-64px)] items-center justify-center py-16">
           <Card className="max-w-md">
             <CardHeader>
-              <CardTitle className="text-center">No cards due right now</CardTitle>
+              <CardTitle className="text-center">
+                No cards due right now
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-center">
               <p className="text-muted-foreground">
-                You are caught up. Add more cards or come back after your next review window.
+                You are caught up. Add more cards or come back after your next
+                review window.
               </p>
               <Button className="w-full" onClick={() => setLocation("/")}>
                 Return to dashboard
@@ -106,7 +115,11 @@ export default function SRSReview() {
               <BookOpen className="h-6 w-6 text-accent" />
               <span className="text-lg font-bold">English Learning Hub</span>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setLocation("/")}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLocation("/")}
+            >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to home
             </Button>
@@ -116,7 +129,9 @@ export default function SRSReview() {
         <div className="container flex min-h-[calc(100vh-64px)] items-center justify-center py-16">
           <Card className="max-w-md">
             <CardHeader>
-              <CardTitle className="text-center">Review session complete</CardTitle>
+              <CardTitle className="text-center">
+                Review session complete
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-center">
               <p className="text-muted-foreground">
@@ -203,7 +218,8 @@ export default function SRSReview() {
             <div>
               <p className="text-muted-foreground">Difficulty level</p>
               <p className="font-semibold">
-                {levelLabels[currentCard.proficiencyLevel] ?? currentCard.proficiencyLevel}
+                {levelLabels[currentCard.proficiencyLevel] ??
+                  currentCard.proficiencyLevel}
               </p>
             </div>
           </CardContent>

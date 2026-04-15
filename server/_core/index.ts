@@ -37,10 +37,10 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
   let isShuttingDown = false;
-  
+
   // Trust proxy for correct IP and secure cookies when behind reverse proxy
   app.set("trust proxy", 1);
-  
+
   // Request ID middleware
   app.use((req, res, next) => {
     req.requestId = randomUUID();
@@ -92,11 +92,31 @@ async function startServer() {
     serveStatic(app);
   }
 
-  const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  const preferredPort = Number.parseInt(process.env.PORT || "3000", 10);
+  if (
+    !Number.isFinite(preferredPort) ||
+    preferredPort <= 0 ||
+    preferredPort > 65535
+  ) {
+    throw new Error(`Invalid PORT value: ${process.env.PORT ?? "(unset)"}`);
+  }
 
-  if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
+  const isDev = process.env.NODE_ENV === "development";
+  let port = preferredPort;
+
+  if (isDev) {
+    port = await findAvailablePort(preferredPort);
+    if (port !== preferredPort) {
+      console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
+    }
+  } else {
+    // Production must be deterministic: do not fall back silently to another port.
+    const available = await isPortAvailable(preferredPort);
+    if (!available) {
+      throw new Error(
+        `Port ${preferredPort} is already in use (production mode requires fail-fast startup)`
+      );
+    }
   }
 
   server.listen(port, () => {
@@ -130,4 +150,8 @@ async function startServer() {
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
 
-startServer().catch(console.error);
+startServer().catch(error => {
+  console.error("[Server] Failed to start:", error);
+  process.exitCode = 1;
+  process.exit(1);
+});

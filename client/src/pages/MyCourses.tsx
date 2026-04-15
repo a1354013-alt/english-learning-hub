@@ -1,16 +1,9 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  ArrowLeft,
-  BookOpen,
-  Download,
-  Eye,
-  Star,
-  Trash2,
-} from "lucide-react";
+import { ArrowLeft, BookOpen, Download, Eye, Star, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
@@ -66,7 +59,8 @@ function normalizeAiCourse(input: unknown): AiCourse | null {
     typeof obj.userId !== "number" ||
     typeof obj.title !== "string" ||
     typeof obj.proficiencyLevel !== "string" ||
-    (typeof obj.generatedAt !== "string" && !(obj.generatedAt instanceof Date)) ||
+    (typeof obj.generatedAt !== "string" &&
+      !(obj.generatedAt instanceof Date)) ||
     typeof obj.isCompleted !== "boolean"
   ) {
     return null;
@@ -81,13 +75,20 @@ function normalizeAiCourse(input: unknown): AiCourse | null {
     generatedAt: obj.generatedAt as string | Date,
     isCompleted: obj.isCompleted,
     rating: typeof obj.rating === "number" ? obj.rating : null,
-    vocabulary: Array.isArray(obj.vocabulary) ? (obj.vocabulary as VocabularyItem[]) : undefined,
-    grammar: obj.grammar && typeof obj.grammar === "object" ? (obj.grammar as GrammarContent) : undefined,
+    vocabulary: Array.isArray(obj.vocabulary)
+      ? (obj.vocabulary as VocabularyItem[])
+      : undefined,
+    grammar:
+      obj.grammar && typeof obj.grammar === "object"
+        ? (obj.grammar as GrammarContent)
+        : undefined,
     readingMaterial:
       obj.readingMaterial && typeof obj.readingMaterial === "object"
         ? (obj.readingMaterial as ReadingMaterial)
         : undefined,
-    exercises: Array.isArray(obj.exercises) ? (obj.exercises as Exercise[]) : undefined,
+    exercises: Array.isArray(obj.exercises)
+      ? (obj.exercises as Exercise[])
+      : undefined,
   };
 }
 
@@ -129,7 +130,7 @@ export default function MyCourses() {
       setShowDetails(false);
       await refreshCourses();
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(error.message || "Failed to delete the course.");
     },
   });
@@ -139,7 +140,7 @@ export default function MyCourses() {
       toast.success("Course marked as completed.");
       await refreshCourses();
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(error.message || "Failed to update completion status.");
     },
   });
@@ -149,18 +150,18 @@ export default function MyCourses() {
       toast.success("Rating saved.");
       await refreshCourses();
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(error.message || "Failed to save rating.");
     },
   });
 
   const importSRSMutation = trpc.aiCourse.importToSRS.useMutation({
-    onSuccess: async (result) => {
+    onSuccess: async result => {
       toast.success(`Imported ${result.cardsImported} cards into SRS.`);
       await refreshCourses();
       setShowDetails(false);
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(error.message || "Failed to import the course into SRS.");
     },
   });
@@ -217,16 +218,24 @@ export default function MyCourses() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <p className="text-sm text-muted-foreground">Topic</p>
-                    <p className="font-medium">{selectedCourse.topic || "General English"}</p>
+                    <p className="font-medium">
+                      {selectedCourse.topic || "General English"}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Level</p>
-                    <p className="font-medium">{levelLabels[selectedCourse.proficiencyLevel]}</p>
+                    <p className="font-medium">
+                      {levelLabels[selectedCourse.proficiencyLevel]}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Generated at</p>
+                    <p className="text-sm text-muted-foreground">
+                      Generated at
+                    </p>
                     <p className="font-medium">
-                      {new Date(selectedCourse.generatedAt).toLocaleString("en-US")}
+                      {new Date(selectedCourse.generatedAt).toLocaleString(
+                        "en-US"
+                      )}
                     </p>
                   </div>
                   <div>
@@ -241,7 +250,7 @@ export default function MyCourses() {
                   <div className="space-y-3">
                     <h3 className="text-lg font-bold">Vocabulary</h3>
                     <div className="grid gap-3 md:grid-cols-2">
-                      {selectedCourse.vocabulary.map((vocab) => (
+                      {selectedCourse.vocabulary.map(vocab => (
                         <div
                           key={`${vocab.word}-${vocab.definition}`}
                           className="rounded-lg border border-border p-3"
@@ -267,11 +276,15 @@ export default function MyCourses() {
                 {selectedCourse.grammar ? (
                   <div className="space-y-2">
                     <h3 className="text-lg font-bold">Grammar</h3>
-                    <p className="font-medium">{selectedCourse.grammar.title || "Grammar focus"}</p>
-                    <p className="text-sm">{selectedCourse.grammar.explanation}</p>
+                    <p className="font-medium">
+                      {selectedCourse.grammar.title || "Grammar focus"}
+                    </p>
+                    <p className="text-sm">
+                      {selectedCourse.grammar.explanation}
+                    </p>
                     {selectedCourse.grammar.examples?.length ? (
                       <ul className="list-inside list-disc text-sm text-muted-foreground">
-                        {selectedCourse.grammar.examples.map((example) => (
+                        {selectedCourse.grammar.examples.map(example => (
                           <li key={example}>{example}</li>
                         ))}
                       </ul>
@@ -282,7 +295,9 @@ export default function MyCourses() {
                 {selectedCourse.readingMaterial ? (
                   <div className="space-y-2">
                     <h3 className="text-lg font-bold">Reading material</h3>
-                    <p className="font-medium">{selectedCourse.readingMaterial.title}</p>
+                    <p className="font-medium">
+                      {selectedCourse.readingMaterial.title}
+                    </p>
                     <p className="whitespace-pre-wrap text-sm">
                       {selectedCourse.readingMaterial.content}
                     </p>
@@ -293,11 +308,14 @@ export default function MyCourses() {
                   <div className="space-y-3">
                     <h3 className="text-lg font-bold">Exercises</h3>
                     {selectedCourse.exercises.map((exercise, index) => (
-                      <div key={`${exercise.question}-${index}`} className="rounded-lg border border-border p-3">
+                      <div
+                        key={`${exercise.question}-${index}`}
+                        className="rounded-lg border border-border p-3"
+                      >
                         <p className="font-medium">{exercise.question}</p>
                         {exercise.options?.length ? (
                           <div className="mt-2 space-y-1">
-                            {exercise.options.map((option) => (
+                            {exercise.options.map(option => (
                               <p key={option} className="text-sm">
                                 {option}
                               </p>
@@ -305,7 +323,9 @@ export default function MyCourses() {
                           </div>
                         ) : null}
                         {exercise.answer ? (
-                          <p className="mt-2 text-sm text-green-600">Answer: {exercise.answer}</p>
+                          <p className="mt-2 text-sm text-green-600">
+                            Answer: {exercise.answer}
+                          </p>
                         ) : null}
                         {exercise.explanation ? (
                           <p className="text-sm text-muted-foreground">
@@ -320,13 +340,19 @@ export default function MyCourses() {
                 <div className="space-y-2 border-t border-border pt-4">
                   <p className="font-medium">Rate this course</p>
                   <div className="flex gap-2">
-                    {[1, 2, 3, 4, 5].map((star) => (
+                    {[1, 2, 3, 4, 5].map(star => (
                       <button
                         key={star}
                         className="transition-transform hover:scale-110"
                         onClick={() => {
-                          rateMutation.mutate({ courseId: selectedCourse.id, rating: star });
-                          setSelectedCourse({ ...selectedCourse, rating: star });
+                          rateMutation.mutate({
+                            courseId: selectedCourse.id,
+                            rating: star,
+                          });
+                          setSelectedCourse({
+                            ...selectedCourse,
+                            rating: star,
+                          });
                         }}
                       >
                         <Star
@@ -345,7 +371,9 @@ export default function MyCourses() {
                   {!selectedCourse.isCompleted ? (
                     <Button
                       disabled={completeMutation.isPending}
-                      onClick={() => completeMutation.mutate({ courseId: selectedCourse.id })}
+                      onClick={() =>
+                        completeMutation.mutate({ courseId: selectedCourse.id })
+                      }
                     >
                       Mark as completed
                     </Button>
@@ -353,15 +381,21 @@ export default function MyCourses() {
                   <Button
                     variant="outline"
                     disabled={importSRSMutation.isPending}
-                    onClick={() => importSRSMutation.mutate({ courseId: selectedCourse.id })}
+                    onClick={() =>
+                      importSRSMutation.mutate({ courseId: selectedCourse.id })
+                    }
                   >
                     <Download className="mr-2 h-4 w-4" />
-                    {importSRSMutation.isPending ? "Importing..." : "Import to SRS"}
+                    {importSRSMutation.isPending
+                      ? "Importing..."
+                      : "Import to SRS"}
                   </Button>
                   <Button
                     variant="outline"
                     disabled={deleteMutation.isPending}
-                    onClick={() => deleteMutation.mutate({ courseId: selectedCourse.id })}
+                    onClick={() =>
+                      deleteMutation.mutate({ courseId: selectedCourse.id })
+                    }
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
                     Delete course
@@ -396,10 +430,15 @@ export default function MyCourses() {
               </Card>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {courses.map((course) => (
-                  <Card key={course.id} className="transition-shadow hover:shadow-lg">
+                {courses.map(course => (
+                  <Card
+                    key={course.id}
+                    className="transition-shadow hover:shadow-lg"
+                  >
                     <CardHeader>
-                      <CardTitle className="line-clamp-2 text-lg">{course.title}</CardTitle>
+                      <CardTitle className="line-clamp-2 text-lg">
+                        {course.title}
+                      </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="space-y-2 text-sm">
@@ -410,16 +449,22 @@ export default function MyCourses() {
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Generated</span>
+                          <span className="text-muted-foreground">
+                            Generated
+                          </span>
                           <span className="font-medium">
-                            {new Date(course.generatedAt).toLocaleDateString("en-US")}
+                            {new Date(course.generatedAt).toLocaleDateString(
+                              "en-US"
+                            )}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Status</span>
                           <span
                             className={`font-medium ${
-                              course.isCompleted ? "text-green-600" : "text-orange-600"
+                              course.isCompleted
+                                ? "text-green-600"
+                                : "text-orange-600"
                             }`}
                           >
                             {course.isCompleted ? "Completed" : "In progress"}
@@ -427,7 +472,9 @@ export default function MyCourses() {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Rating</span>
-                          <span className="font-medium">{renderRating(course.rating)}</span>
+                          <span className="font-medium">
+                            {renderRating(course.rating)}
+                          </span>
                         </div>
                       </div>
 
@@ -453,5 +500,3 @@ export default function MyCourses() {
     </div>
   );
 }
-
-

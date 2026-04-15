@@ -5,6 +5,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import Dashboard from "./pages/Dashboard";
 import SRSReview from "./pages/SRSReview";
 import WritingPractice from "./pages/WritingPractice";
 import VideoLearning from "./pages/VideoLearning";
@@ -14,8 +15,6 @@ import MyCourses from "./pages/MyCourses";
 import SubmissionHistory from "./pages/SubmissionHistory";
 import DashboardLayout from "./components/DashboardLayout";
 import { useAuth } from "./_core/hooks/useAuth";
-
-import { useEffect } from "react";
 import { getLoginUrl } from "./const";
 
 // Protected route wrapper that redirects to OAuth if not authenticated
@@ -44,13 +43,70 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
-      <Route path={"/srs"} component={() => <ProtectedLayout><SRSReview /></ProtectedLayout>} />
-      <Route path={"/writing"} component={() => <ProtectedLayout><WritingPractice /></ProtectedLayout>} />
-      <Route path={"/videos"} component={() => <ProtectedLayout><VideoLearning /></ProtectedLayout>} />
-      <Route path={"/daily-content"} component={() => <ProtectedLayout><DailyContent /></ProtectedLayout>} />
-      <Route path={"/ai-course"} component={() => <ProtectedLayout><AICourseGenerator /></ProtectedLayout>} />
-      <Route path={"/my-courses"} component={() => <ProtectedLayout><MyCourses /></ProtectedLayout>} />
-      <Route path={"/submission-history"} component={() => <ProtectedLayout><SubmissionHistory /></ProtectedLayout>} />
+      <Route
+        path={"/dashboard"}
+        component={() => (
+          <ProtectedLayout>
+            <Dashboard />
+          </ProtectedLayout>
+        )}
+      />
+      <Route
+        path={"/srs"}
+        component={() => (
+          <ProtectedLayout>
+            <SRSReview />
+          </ProtectedLayout>
+        )}
+      />
+      <Route
+        path={"/writing"}
+        component={() => (
+          <ProtectedLayout>
+            <WritingPractice />
+          </ProtectedLayout>
+        )}
+      />
+      <Route
+        path={"/videos"}
+        component={() => (
+          <ProtectedLayout>
+            <VideoLearning />
+          </ProtectedLayout>
+        )}
+      />
+      <Route
+        path={"/daily-content"}
+        component={() => (
+          <ProtectedLayout>
+            <DailyContent />
+          </ProtectedLayout>
+        )}
+      />
+      <Route
+        path={"/ai-course"}
+        component={() => (
+          <ProtectedLayout>
+            <AICourseGenerator />
+          </ProtectedLayout>
+        )}
+      />
+      <Route
+        path={"/my-courses"}
+        component={() => (
+          <ProtectedLayout>
+            <MyCourses />
+          </ProtectedLayout>
+        )}
+      />
+      <Route
+        path={"/submission-history"}
+        component={() => (
+          <ProtectedLayout>
+            <SubmissionHistory />
+          </ProtectedLayout>
+        )}
+      />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

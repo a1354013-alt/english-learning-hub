@@ -33,7 +33,9 @@ let schedulerInitialized = false;
  */
 export function initializeScheduler() {
   if (schedulerInitialized) {
-    console.log("[Scheduler] Scheduler already initialized, skipping duplicate init");
+    console.log(
+      "[Scheduler] Scheduler already initialized, skipping duplicate init"
+    );
     return;
   }
 
@@ -108,7 +110,8 @@ async function checkAndGenerateContent() {
       const timeSinceLastGeneration = now.getTime() - lastExecutedAt.getTime();
       const isRunning = lastState?.status === "running";
       const isStaleRunning =
-        isRunning && now.getTime() - lastExecutedAt.getTime() > STALE_TASK_THRESHOLD;
+        isRunning &&
+        now.getTime() - lastExecutedAt.getTime() > STALE_TASK_THRESHOLD;
 
       if (isRunning && !isStaleRunning) {
         console.log(
@@ -117,7 +120,10 @@ async function checkAndGenerateContent() {
         continue;
       }
 
-      if (timeSinceLastGeneration >= CONTENT_GENERATION_INTERVAL || isStaleRunning) {
+      if (
+        timeSinceLastGeneration >= CONTENT_GENERATION_INTERVAL ||
+        isStaleRunning
+      ) {
         // Mark as running (or recover from stale running state)
         await db
           .insert(schedulerState)
@@ -143,7 +149,9 @@ async function checkAndGenerateContent() {
         );
 
         // Mark as completed
-        const nextScheduledAt = new Date(now.getTime() + CONTENT_GENERATION_INTERVAL);
+        const nextScheduledAt = new Date(
+          now.getTime() + CONTENT_GENERATION_INTERVAL
+        );
         await db
           .update(schedulerState)
           .set({
@@ -209,12 +217,11 @@ async function checkAndArchiveContent() {
     const timeSinceLastArchive = now.getTime() - lastExecutedAt.getTime();
     const isRunning = lastState?.status === "running";
     const isStaleRunning =
-      isRunning && now.getTime() - lastExecutedAt.getTime() > STALE_TASK_THRESHOLD;
+      isRunning &&
+      now.getTime() - lastExecutedAt.getTime() > STALE_TASK_THRESHOLD;
 
     if (isRunning && !isStaleRunning) {
-      console.log(
-        `[Scheduler] Task ${taskName} is still running, skipping...`
-      );
+      console.log(`[Scheduler] Task ${taskName} is still running, skipping...`);
       return;
     }
 
@@ -333,7 +340,7 @@ export async function getSchedulerStatus() {
   return {
     states,
     nextContentGenerationTimes: Object.fromEntries(
-      PROFICIENCY_LEVELS.map((level) => {
+      PROFICIENCY_LEVELS.map(level => {
         const taskName = `content_generation_${level}`;
         const state = states.find((s: any) => s.taskName === taskName);
         const nextGen = state?.nextScheduledAt
@@ -342,11 +349,13 @@ export async function getSchedulerStatus() {
         return [level, nextGen];
       })
     ),
-    nextArchiveTime: states.find((s: any) => s.taskName === "archive_old_content")
-      ?.nextScheduledAt
+    nextArchiveTime: states.find(
+      (s: any) => s.taskName === "archive_old_content"
+    )?.nextScheduledAt
       ? new Date(
-          states.find((s: any) => s.taskName === "archive_old_content")!
-            .nextScheduledAt!
+          states.find(
+            (s: any) => s.taskName === "archive_old_content"
+          )!.nextScheduledAt!
         ).toISOString()
       : "Pending",
   };

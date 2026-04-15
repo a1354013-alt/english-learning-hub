@@ -26,7 +26,10 @@ export async function isOllamaAvailable(): Promise<boolean> {
     });
     return response.status === 200;
   } catch (error) {
-    console.warn("[Ollama] Service not available:", error instanceof Error ? error.message : "Unknown error");
+    console.warn(
+      "[Ollama] Service not available:",
+      error instanceof Error ? error.message : "Unknown error"
+    );
     return false;
   }
 }
@@ -143,7 +146,10 @@ Generate 5 vocabulary items, 1 grammar concept, 1 reading passage, and 3-5 exerc
       throw new Error("Failed to parse AI-generated content");
     }
   } catch (error) {
-    console.error("[Ollama] Error generating course:", error instanceof Error ? error.message : "Unknown error");
+    console.error(
+      "[Ollama] Error generating course:",
+      error instanceof Error ? error.message : "Unknown error"
+    );
     throw error;
   }
 }
@@ -220,7 +226,10 @@ Score should be 0-100. Include 2-5 corrections and 2-3 suggestions.`;
       throw new Error("Failed to parse AI feedback");
     }
   } catch (error) {
-    console.error("[Ollama] Error generating feedback:", error instanceof Error ? error.message : "Unknown error");
+    console.error(
+      "[Ollama] Error generating feedback:",
+      error instanceof Error ? error.message : "Unknown error"
+    );
     throw error;
   }
 }
@@ -291,7 +300,10 @@ Create one question per word.`;
       throw new Error("Failed to parse AI-generated quiz");
     }
   } catch (error) {
-    console.error("[Ollama] Error generating quiz:", error instanceof Error ? error.message : "Unknown error");
+    console.error(
+      "[Ollama] Error generating quiz:",
+      error instanceof Error ? error.message : "Unknown error"
+    );
     throw error;
   }
 }

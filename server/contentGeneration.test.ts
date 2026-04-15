@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { selectReusableDailyContent, createDailyContentPayload } from "./contentGeneration";
+import {
+  selectReusableDailyContent,
+  createDailyContentPayload,
+} from "./contentGeneration";
 
 describe("selectReusableDailyContent", () => {
   it("reuses non-archived content", () => {
@@ -34,8 +37,14 @@ describe("createDailyContentPayload", () => {
 
   it("generates different content for different proficiency levels on same date", () => {
     const referenceDate = new Date("2026-04-09T00:00:00.000+08:00");
-    const juniorContent = createDailyContentPayload("junior_high", referenceDate);
-    const seniorContent = createDailyContentPayload("senior_high", referenceDate);
+    const juniorContent = createDailyContentPayload(
+      "junior_high",
+      referenceDate
+    );
+    const seniorContent = createDailyContentPayload(
+      "senior_high",
+      referenceDate
+    );
 
     expect(juniorContent.vocabulary).not.toEqual(seniorContent.vocabulary);
   });

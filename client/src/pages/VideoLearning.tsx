@@ -42,10 +42,11 @@ export default function VideoLearning() {
   const youtubeAPIPromiseRef = useRef<Promise<void> | null>(null);
   const [youtubeLoadError, setYoutubeLoadError] = useState<string | null>(null);
 
-  const { data: videosList, isLoading: videosLoading } = trpc.video.list.useQuery(
-    { level: undefined },
-    { enabled: isAuthenticated }
-  );
+  const { data: videosList, isLoading: videosLoading } =
+    trpc.video.list.useQuery(
+      { level: undefined },
+      { enabled: isAuthenticated }
+    );
 
   const { data: videoDetails } = trpc.video.detail.useQuery(
     { videoId: selectedVideoId || 0 },
@@ -53,7 +54,7 @@ export default function VideoLearning() {
   );
 
   const logProgressMutation = trpc.video.logProgress.useMutation({
-    onSuccess: (data) => {
+    onSuccess: data => {
       if (data.xpEarned > 0) {
         toast.success(`Earned ${data.xpEarned} XP from video study.`);
       }
@@ -71,7 +72,7 @@ export default function VideoLearning() {
       setSelectedWord(null);
       setSelectedWordDef(null);
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(error.message || "Failed to add the card.");
     },
   });
@@ -198,7 +199,9 @@ export default function VideoLearning() {
 
     initializePlayer().catch((error: unknown) => {
       setYoutubeLoadError(
-        error instanceof Error ? error.message : "Unable to initialize YouTube player."
+        error instanceof Error
+          ? error.message
+          : "Unable to initialize YouTube player."
       );
     });
 
@@ -223,12 +226,16 @@ export default function VideoLearning() {
   }, [selectedVideoId]);
 
   useEffect(() => {
-    if (!selectedVideoId || !videoDetails?.durationSeconds || currentTime <= 0) return;
+    if (!selectedVideoId || !videoDetails?.durationSeconds || currentTime <= 0)
+      return;
 
-    const progressPercentage = (currentTime / videoDetails.durationSeconds) * 100;
+    const progressPercentage =
+      (currentTime / videoDetails.durationSeconds) * 100;
     const currentCheckpointSecond = Math.floor(currentTime / 30) * 30;
-    const shouldLogByCheckpoint = currentCheckpointSecond > lastCheckpointSecond;
-    const shouldLogByCompletion = progressPercentage >= 90 && !hasLoggedCompletion;
+    const shouldLogByCheckpoint =
+      currentCheckpointSecond > lastCheckpointSecond;
+    const shouldLogByCompletion =
+      progressPercentage >= 90 && !hasLoggedCompletion;
 
     if (!shouldLogByCheckpoint && !shouldLogByCompletion) return;
 
@@ -281,7 +288,7 @@ export default function VideoLearning() {
     : [];
 
   const currentSubtitle = subtitles.find(
-    (subtitle) => subtitle.start <= currentTime && currentTime < subtitle.end
+    subtitle => subtitle.start <= currentTime && currentTime < subtitle.end
   );
 
   return (
@@ -303,7 +310,8 @@ export default function VideoLearning() {
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">Video learning</h1>
           <p className="text-muted-foreground">
-            Watch a lesson, follow the transcript, and turn useful words into review cards.
+            Watch a lesson, follow the transcript, and turn useful words into
+            review cards.
           </p>
         </div>
 
@@ -324,7 +332,10 @@ export default function VideoLearning() {
                           {youtubeLoadError}
                         </div>
                       ) : (
-                        <div ref={youtubeContainerRef} style={{ width: "100%", height: "100%" }} />
+                        <div
+                          ref={youtubeContainerRef}
+                          style={{ width: "100%", height: "100%" }}
+                        />
                       )
                     ) : (
                       <video
@@ -332,7 +343,7 @@ export default function VideoLearning() {
                         controls
                         width="100%"
                         height="100%"
-                        onTimeUpdate={(event) => {
+                        onTimeUpdate={event => {
                           setCurrentTime(event.currentTarget.currentTime);
                         }}
                       >
@@ -346,7 +357,9 @@ export default function VideoLearning() {
                     </div>
                   ) : (
                     <div className="flex h-full items-center justify-center">
-                      <p className="text-muted-foreground">No video selected.</p>
+                      <p className="text-muted-foreground">
+                        No video selected.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -359,7 +372,9 @@ export default function VideoLearning() {
                   <CardTitle className="text-sm">Description</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground">{videoDetails.description}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {videoDetails.description}
+                  </p>
                 </CardContent>
               </Card>
             ) : null}
@@ -398,7 +413,10 @@ export default function VideoLearning() {
                       }`}
                       onClick={() => {
                         setCurrentTime(subtitle.start);
-                        if (youtubePlayerRef.current && videoDetails?.youtubeId) {
+                        if (
+                          youtubePlayerRef.current &&
+                          videoDetails?.youtubeId
+                        ) {
                           youtubePlayerRef.current.seekTo(subtitle.start);
                         }
                         if (videoRef.current && !videoDetails?.youtubeId) {
@@ -409,14 +427,19 @@ export default function VideoLearning() {
                       <p className="text-sm font-medium">{subtitle.text}</p>
                       <p className="text-xs text-muted-foreground">
                         {Math.floor(subtitle.start / 60)}:
-                        {String(Math.floor(subtitle.start % 60)).padStart(2, "0")} -{" "}
-                        {Math.floor(subtitle.end / 60)}:
+                        {String(Math.floor(subtitle.start % 60)).padStart(
+                          2,
+                          "0"
+                        )}{" "}
+                        - {Math.floor(subtitle.end / 60)}:
                         {String(Math.floor(subtitle.end % 60)).padStart(2, "0")}
                       </p>
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">No transcript is available.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No transcript is available.
+                  </p>
                 )}
               </CardContent>
             </Card>
@@ -429,9 +452,11 @@ export default function VideoLearning() {
               </CardHeader>
               <CardContent className="max-h-96 space-y-2 overflow-y-auto">
                 {videosLoading ? (
-                  <p className="text-sm text-muted-foreground">Loading videos...</p>
+                  <p className="text-sm text-muted-foreground">
+                    Loading videos...
+                  </p>
                 ) : videosList?.length ? (
-                  videosList.map((video) => (
+                  videosList.map(video => (
                     <button
                       key={video.id}
                       className={`w-full rounded-lg p-2 text-left text-sm transition-colors ${
@@ -448,7 +473,9 @@ export default function VideoLearning() {
                     </button>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">No videos are available.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No videos are available.
+                  </p>
                 )}
               </CardContent>
             </Card>
@@ -460,10 +487,14 @@ export default function VideoLearning() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {dictionaryLookup.isLoading ? (
-                    <p className="text-sm text-muted-foreground">Looking up the word...</p>
+                    <p className="text-sm text-muted-foreground">
+                      Looking up the word...
+                    </p>
                   ) : selectedWordDef ? (
                     <>
-                      <p className="text-sm text-muted-foreground">{selectedWordDef}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedWordDef}
+                      </p>
                       <div className="flex gap-2">
                         <Button
                           className="flex-1"

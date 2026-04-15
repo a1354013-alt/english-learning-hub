@@ -62,7 +62,12 @@ export function decodeAndVerifyOAuthState(state: string): string {
     const stateData: OAuthStateData = JSON.parse(decoded);
 
     // Validate state structure
-    if (!stateData.redirectUri || !stateData.nonce || !stateData.timestamp || !stateData.signature) {
+    if (
+      !stateData.redirectUri ||
+      !stateData.nonce ||
+      !stateData.timestamp ||
+      !stateData.signature
+    ) {
       throw new Error("Invalid state format: missing required fields");
     }
 
@@ -72,18 +77,20 @@ export function decodeAndVerifyOAuthState(state: string): string {
       stateData.nonce,
       stateData.timestamp
     );
-    
+
     // Check length first to avoid timing attacks
     if (stateData.signature.length !== expectedSignature.length) {
       throw new Error("Invalid state signature: signature verification failed");
     }
-    
+
     // Use constant-time comparison to prevent timing attacks
     // Both signature and expectedSignature are hex strings from HMAC digest
-    if (!timingSafeEqual(
-      Buffer.from(stateData.signature, "hex"),
-      Buffer.from(expectedSignature, "hex")
-    )) {
+    if (
+      !timingSafeEqual(
+        Buffer.from(stateData.signature, "hex"),
+        Buffer.from(expectedSignature, "hex")
+      )
+    ) {
       throw new Error("Invalid state signature: signature verification failed");
     }
 
@@ -133,7 +140,10 @@ function isValidRedirectUri(redirectUri: string): boolean {
     }
 
     // Allow common Manus domains
-    if (url.hostname.endsWith(".manus.space") || url.hostname.endsWith(".manus.im")) {
+    if (
+      url.hostname.endsWith(".manus.space") ||
+      url.hostname.endsWith(".manus.im")
+    ) {
       return true;
     }
 

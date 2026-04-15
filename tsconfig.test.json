@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "server/**/*",
+    "client/src/**/*",
+    "shared/**/*",
+    "vitest.config.ts"
+  ],
+  "exclude": ["node_modules", "build", "dist"]
+}

@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { transformGeneratedContent, safeParseJSON } from "@/utils/contentTransform";
+import {
+  transformGeneratedContent,
+  safeParseJSON,
+} from "@/utils/contentTransform";
 
 describe("transformGeneratedContent", () => {
   it("should handle null data", () => {
@@ -20,12 +23,18 @@ describe("transformGeneratedContent", () => {
 
   it("should transform valid data correctly", () => {
     const data = {
-      vocabulary: [{ word: "apple", definition: "A fruit", usage: "I eat an apple" }],
+      vocabulary: [
+        { word: "apple", definition: "A fruit", usage: "I eat an apple" },
+      ],
       readingMaterial: {
         phrase: "How are you?",
         sentence: "I am fine.",
       },
-      grammar: { topic: "Present Tense", explanation: "Used for habits", example: "I eat breakfast" },
+      grammar: {
+        topic: "Present Tense",
+        explanation: "Used for habits",
+        example: "I eat breakfast",
+      },
     };
 
     const result = transformGeneratedContent(data);
@@ -54,8 +63,16 @@ describe("transformGeneratedContent", () => {
   it("should accept phrase and sentence in object format", () => {
     const data = {
       readingMaterial: {
-        phrase: { phrase: "Break the ice", definition: "Start conversation", usage: "Tell a joke." },
-        sentence: { sentence: "She broke the ice.", definition: "Started naturally", usage: "At the party." },
+        phrase: {
+          phrase: "Break the ice",
+          definition: "Start conversation",
+          usage: "Tell a joke.",
+        },
+        sentence: {
+          sentence: "She broke the ice.",
+          definition: "Started naturally",
+          usage: "At the party.",
+        },
       },
     };
 
@@ -87,7 +104,9 @@ describe("transformGeneratedContent", () => {
 
   it("should handle missing readingMaterial", () => {
     const data = {
-      vocabulary: [{ word: "test", definition: "A test", usage: "This is a test" }],
+      vocabulary: [
+        { word: "test", definition: "A test", usage: "This is a test" },
+      ],
     };
 
     const result = transformGeneratedContent(data);
@@ -133,7 +152,7 @@ describe("safeParseJSON", () => {
   });
 
   it("should handle JSON arrays", () => {
-    const json = '[1, 2, 3]';
+    const json = "[1, 2, 3]";
     const result = safeParseJSON(json);
     expect(result).toEqual([1, 2, 3]);
   });
@@ -141,18 +160,18 @@ describe("safeParseJSON", () => {
   it("should handle nested objects", () => {
     const json = '{"nested": {"key": "value"}}';
     const result = safeParseJSON(json);
-    expect(result?.nested?.key).toBe("value");
+    expect(result).toEqual({ nested: { key: "value" } });
   });
 
   it("should handle JSON with special characters", () => {
     const json = '{"text": "Hello\\nWorld"}';
     const result = safeParseJSON(json);
-    expect(result?.text).toBe("Hello\nWorld");
+    expect(result).toEqual({ text: "Hello\nWorld" });
   });
 
   it("should handle JSON with unicode", () => {
     const json = '{"text": "你好世界"}';
     const result = safeParseJSON(json);
-    expect(result?.text).toBe("你好世界");
+    expect(result).toEqual({ text: "你好世界" });
   });
 });

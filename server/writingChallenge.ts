@@ -3,7 +3,7 @@ import { toTaipeiDateStr } from "./_core/date";
 function dayNumberForTaipeiDate(date: Date): number {
   const [year, month, day] = toTaipeiDateStr(date)
     .split("-")
-    .map((part) => Number.parseInt(part, 10));
+    .map(part => Number.parseInt(part, 10));
   return Math.floor(Date.UTC(year, month - 1, day) / 86_400_000);
 }
 
@@ -31,7 +31,7 @@ export function selectDailyWritingChallenge<T extends WritingChallengeChoice>(
 ): T | null {
   const todayDate = toTaipeiDateStr(today);
   const directMatch = challenges.find(
-    (challenge) =>
+    challenge =>
       challenge.proficiencyLevel === proficiencyLevel &&
       challenge.activeDate === todayDate
   );
@@ -41,7 +41,7 @@ export function selectDailyWritingChallenge<T extends WritingChallengeChoice>(
   }
 
   const levelChallenges = challenges
-    .filter((challenge) => challenge.proficiencyLevel === proficiencyLevel)
+    .filter(challenge => challenge.proficiencyLevel === proficiencyLevel)
     .sort((a, b) => a.id - b.id);
 
   if (levelChallenges.length === 0) {

@@ -6,15 +6,10 @@ import {
   InsertUser,
   users,
   cards,
-  decks,
   studyLogs,
   dailySignIns,
   dictionaryCache,
-  videos,
-  writingChallenges,
-  writingSubmissions,
   generatedContent,
-  contentArchive,
   learningPaths,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
@@ -360,7 +355,10 @@ export async function checkDailySignIn(userId: number) {
     .select()
     .from(dailySignIns)
     .where(
-      and(eq(dailySignIns.userId, userId), eq(dailySignIns.signInDate, todayStr))
+      and(
+        eq(dailySignIns.userId, userId),
+        eq(dailySignIns.signInDate, todayStr)
+      )
     )
     .limit(1);
 
@@ -450,14 +448,15 @@ export async function getDictionaryEntry(word: string) {
   if (result.length > 0) {
     // Update frequency
     const entry = result[0];
+    const nextFrequency = entry.frequency + 1;
     await db
       .update(dictionaryCache)
       .set({
-        frequency: entry.frequency + 1,
+        frequency: nextFrequency,
       })
       .where(eq(dictionaryCache.id, entry.id));
 
-    return entry;
+    return { ...entry, frequency: nextFrequency };
   }
 
   return null;
@@ -477,6 +476,8 @@ export async function upsertDictionaryEntry(
   const db = await getDb();
   if (!db) return null;
 
+  const normalizedExampleSentences = exampleSentences ?? null;
+
   const existing = await db
     .select()
     .from(dictionaryCache)
@@ -484,18 +485,25 @@ export async function upsertDictionaryEntry(
     .limit(1);
 
   if (existing.length > 0) {
+    const id = existing[0].id;
     await db
       .update(dictionaryCache)
       .set({
         phonetic: phonetic || existing[0].phonetic,
         audioUrl: audioUrl || existing[0].audioUrl,
         definitions,
-        exampleSentences,
+        exampleSentences: normalizedExampleSentences,
         proficiencyLevel,
       })
-      .where(eq(dictionaryCache.id, existing[0].id));
+      .where(eq(dictionaryCache.id, id));
 
-    return existing[0];
+    const updated = await db
+      .select()
+      .from(dictionaryCache)
+      .where(eq(dictionaryCache.id, id))
+      .limit(1);
+
+    return updated[0] ?? null;
   }
 
   await db.insert(dictionaryCache).values({
@@ -503,12 +511,18 @@ export async function upsertDictionaryEntry(
     phonetic,
     audioUrl,
     definitions,
-    exampleSentences,
+    exampleSentences: normalizedExampleSentences,
     proficiencyLevel,
     frequency: 1,
   });
 
-  return { word, phonetic, audioUrl, definitions, exampleSentences };
+  const inserted = await db
+    .select()
+    .from(dictionaryCache)
+    .where(eq(dictionaryCache.word, word))
+    .limit(1);
+
+  return inserted[0] ?? null;
 }
 
 /**
@@ -549,7 +563,13 @@ export async function upsertLearningPath(
       })
       .where(eq(learningPaths.id, existing.id));
 
-    return existing;
+    const updated = await db
+      .select()
+      .from(learningPaths)
+      .where(eq(learningPaths.id, existing.id))
+      .limit(1);
+
+    return updated[0] ?? null;
   }
 
   await db.insert(learningPaths).values({
@@ -558,7 +578,13 @@ export async function upsertLearningPath(
     targetLevel,
   });
 
-  return { userId, currentLevel, targetLevel };
+  const inserted = await db
+    .select()
+    .from(learningPaths)
+    .where(eq(learningPaths.userId, userId))
+    .limit(1);
+
+  return inserted[0] ?? null;
 }
 
 /**
@@ -597,12 +623,18 @@ export async function archiveGeneratedContent(contentId: number) {
     .set({
       isArchived: true,
     })
-    .where(and(eq(generatedContent.id, contentId), eq(generatedContent.isArchived, false)));
+    .where(
+      and(
+        eq(generatedContent.id, contentId),
+        eq(generatedContent.isArchived, false)
+      )
+    );
 
-  const affected = Number((result as { rowsAffected?: number }).rowsAffected ?? 0);
+  const affected = Number(
+    (result as { rowsAffected?: number }).rowsAffected ?? 0
+  );
   return { contentId, success: affected > 0 };
 }
-
 
 /**
  * Save AI-generated course
@@ -632,7 +664,11 @@ export async function saveAiCourse(
     userId,
     title: course.title,
     topic: course.topic,
-    proficiencyLevel: course.proficiencyLevel as "junior_high" | "senior_high" | "college" | "advanced",
+    proficiencyLevel: course.proficiencyLevel as
+      | "junior_high"
+      | "senior_high"
+      | "college"
+      | "advanced",
     vocabulary: course.content.vocabulary || [],
     grammar: course.content.grammar || {},
     readingMaterial: course.content.readingMaterial || {},
@@ -641,7 +677,10 @@ export async function saveAiCourse(
     isCompleted: false,
   });
 
-  return { success: true, courseId: (result as unknown as InsertResult).insertId };
+  return {
+    success: true,
+    courseId: (result as unknown as InsertResult).insertId,
+  };
 }
 
 /**
@@ -668,13 +707,24 @@ export async function getAiCourses(
 
   // Objects are already parsed by Drizzle from JSON columns
   // Return courses with properly normalized JSON fields
-  return courses.map((course) => ({
+  return courses.map(course => ({
     ...course,
     topic: course.topic ?? undefined,
-    vocabulary: Array.isArray(course.vocabulary) ? (course.vocabulary as unknown[]) : [],
-    grammar: typeof course.grammar === 'object' && course.grammar !== null ? (course.grammar as Record<string, unknown>) : {},
-    readingMaterial: typeof course.readingMaterial === 'object' && course.readingMaterial !== null ? (course.readingMaterial as Record<string, unknown>) : {},
-    exercises: Array.isArray(course.exercises) ? (course.exercises as unknown[]) : [],
+    vocabulary: Array.isArray(course.vocabulary)
+      ? (course.vocabulary as unknown[])
+      : [],
+    grammar:
+      typeof course.grammar === "object" && course.grammar !== null
+        ? (course.grammar as Record<string, unknown>)
+        : {},
+    readingMaterial:
+      typeof course.readingMaterial === "object" &&
+      course.readingMaterial !== null
+        ? (course.readingMaterial as Record<string, unknown>)
+        : {},
+    exercises: Array.isArray(course.exercises)
+      ? (course.exercises as unknown[])
+      : [],
   })) as unknown as typeof courses;
 }
 
@@ -716,7 +766,11 @@ export async function markCourseCompleted(userId: number, courseId: number) {
 /**
  * Rate AI course
  */
-export async function rateCourse(userId: number, courseId: number, rating: number) {
+export async function rateCourse(
+  userId: number,
+  courseId: number,
+  rating: number
+) {
   const db = await getDb();
   if (!db) return null;
 
@@ -734,7 +788,11 @@ export async function rateCourse(userId: number, courseId: number, rating: numbe
 /**
  * Add notes to course
  */
-export async function addCourseNotes(userId: number, courseId: number, notes: string) {
+export async function addCourseNotes(
+  userId: number,
+  courseId: number,
+  notes: string
+) {
   const db = await getDb();
   if (!db) return null;
 
@@ -748,7 +806,6 @@ export async function addCourseNotes(userId: number, courseId: number, notes: st
 
   return { success: true };
 }
-
 
 /**
  * Get SRS statistics for user
@@ -799,7 +856,9 @@ export async function getSRSStats(userId: number) {
       .select({ avg: sql`AVG(CAST(easinessFactor AS DECIMAL(5,2))) as avg` })
       .from(cards)
       .where(eq(cards.userId, userId));
-    const averageEasiness = parseFloat((avgEasinessResult[0]?.avg as string) || "2.5");
+    const averageEasiness = parseFloat(
+      (avgEasinessResult[0]?.avg as string) || "2.5"
+    );
 
     return {
       totalCards: Number(totalCards),

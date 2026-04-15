@@ -95,7 +95,7 @@ export function transformGeneratedContent(data: unknown): GeneratedContentData {
   const vocabulary: VocabularyItem[] = [];
   const dataObj = data as Record<string, unknown>;
   if (Array.isArray(dataObj.vocabulary)) {
-    dataObj.vocabulary.forEach((item) => {
+    dataObj.vocabulary.forEach(item => {
       if (
         item &&
         typeof item === "object" &&
@@ -110,7 +110,9 @@ export function transformGeneratedContent(data: unknown): GeneratedContentData {
 
   // Safely extract phrase
   const phrases: PhraseItem[] = [];
-  const readingMaterial = dataObj.readingMaterial as Record<string, unknown> | undefined;
+  const readingMaterial = dataObj.readingMaterial as
+    | Record<string, unknown>
+    | undefined;
   if (readingMaterial && typeof readingMaterial === "object") {
     const phraseItem = normalizePhrase(readingMaterial.phrase);
     if (phraseItem) {

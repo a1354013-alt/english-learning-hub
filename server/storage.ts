@@ -1,7 +1,7 @@
 // Preconfigured storage helpers for Manus WebDev templates
 // Uses the Biz-provided storage proxy (Authorization: Bearer <token>)
 
-import { ENV } from './_core/env';
+import { ENV } from "./_core/env";
 
 type StorageConfig = { baseUrl: string; apiKey: string };
 
@@ -50,13 +50,19 @@ function normalizeKey(relKey: string): string {
   const normalized = relKey.replace(/^\/+/, "");
 
   // Reject path traversal attempts
-  if (normalized.includes("..") || normalized.includes("\\") || normalized.includes("%2e%2e")) {
+  if (
+    normalized.includes("..") ||
+    normalized.includes("\\") ||
+    normalized.includes("%2e%2e")
+  ) {
     throw new Error(`Invalid storage key: path traversal detected (${relKey})`);
   }
 
   // Only allow alphanumeric, forward slash, underscore, hyphen, and dot
-  if (!/^[a-zA-Z0-9/_\-\.]*$/.test(normalized)) {
-    throw new Error(`Invalid storage key: contains disallowed characters (${relKey})`);
+  if (!/^[a-zA-Z0-9/_.-]*$/.test(normalized)) {
+    throw new Error(
+      `Invalid storage key: contains disallowed characters (${relKey})`
+    );
   }
 
   // Reject empty keys
@@ -110,7 +116,9 @@ export async function storagePut(
   return { key, url };
 }
 
-export async function storageGet(relKey: string): Promise<{ key: string; url: string; }> {
+export async function storageGet(
+  relKey: string
+): Promise<{ key: string; url: string }> {
   const { baseUrl, apiKey } = getStorageConfig();
   const key = normalizeKey(relKey);
   return {

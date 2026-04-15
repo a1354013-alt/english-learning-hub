@@ -13,6 +13,6 @@ export function shouldDeduplicateVideoProgress(
   checkpointSecond: number
 ): boolean {
   return recentLogs.some(
-    (log) => log.videoId === videoId && log.checkpointSecond === checkpointSecond
+    log => log.videoId === videoId && log.checkpointSecond === checkpointSecond
   );
 }

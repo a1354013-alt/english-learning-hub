@@ -30,7 +30,9 @@ export function GamificationStats({
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{totalXp}</div>
-          <p className="text-xs text-muted-foreground">Earned from study activity</p>
+          <p className="text-xs text-muted-foreground">
+            Earned from study activity
+          </p>
         </CardContent>
       </Card>
 
@@ -41,7 +43,9 @@ export function GamificationStats({
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{currentStreak}</div>
-          <p className="text-xs text-muted-foreground">Consecutive active days</p>
+          <p className="text-xs text-muted-foreground">
+            Consecutive active days
+          </p>
         </CardContent>
       </Card>
 
@@ -65,7 +69,9 @@ export function GamificationStats({
           <div className="text-lg font-bold">
             {levelLabels[proficiencyLevel] ?? proficiencyLevel}
           </div>
-          <p className="text-xs text-muted-foreground">Learning track difficulty</p>
+          <p className="text-xs text-muted-foreground">
+            Learning track difficulty
+          </p>
         </CardContent>
       </Card>
     </div>

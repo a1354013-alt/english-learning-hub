@@ -4,7 +4,12 @@ node_modules/
 .manus-logs/
 dist/
 release/
+build/
+coverage/
+tmp/
+temp/
 *.zip
+*.tgz
 desktop.ini
 *.log
 *.tmp

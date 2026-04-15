@@ -50,42 +50,40 @@ export function registerOAuthRoutes(app: Express) {
     try {
       // Get redirect path from query parameter (default to "/")
       let redirectPath = getQueryParam(req, "redirect") || "/";
-      
+
       // Sanitize redirect path: must start with / and not contain protocol
       // Prevents open redirect attacks like //evil.com or http://evil.com
       if (!redirectPath.startsWith("/") || redirectPath.includes(":")) {
-        console.warn(
-          "[OAuth] Invalid redirect path attempted:",
-          redirectPath
-        );
+        console.warn("[OAuth] Invalid redirect path attempted:", redirectPath);
         redirectPath = "/";
       }
-      
+
       // Construct full redirect URI
       const appOrigin = ENV.appOrigin;
       if (!appOrigin) {
         res.status(500).json({ error: "APP_ORIGIN not configured" });
         return;
       }
-      
+
       const redirectUri = `${appOrigin}${redirectPath}`;
-      
+
       // Generate state payload
       const nonce = generateNonce();
       const timestamp = Date.now();
-      
+
       // Generate signed state
       const signedState = encodeOAuthState(redirectUri, nonce, timestamp);
-      
+
       // Construct OAuth Portal URL
       const oauthUrl = new URL(`${ENV.oAuthPortalUrl}/login`);
       oauthUrl.searchParams.set("app_id", ENV.appId);
       oauthUrl.searchParams.set("state", signedState);
-      
+
       // Redirect to OAuth Portal
       res.redirect(302, oauthUrl.toString());
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       console.error("[OAuth] Start failed:", errorMessage);
       res.status(500).json({ error: "OAuth start failed" });
     }
@@ -131,12 +129,16 @@ export function registerOAuthRoutes(app: Express) {
 
       // Set session cookie
       const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      res.cookie(COOKIE_NAME, sessionToken, {
+        ...cookieOptions,
+        maxAge: ONE_YEAR_MS,
+      });
 
       // Redirect to the verified redirect URI
       res.redirect(302, redirectUri);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       console.error("[OAuth] Callback failed", errorMessage);
 
       // Return 400 for invalid state (CSRF/tampering)
@@ -150,5 +152,4 @@ export function registerOAuthRoutes(app: Express) {
       res.status(500).json({ error: "OAuth callback failed" });
     }
   });
-
 }

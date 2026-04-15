@@ -3,7 +3,7 @@ export { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 /**
  * Get OAuth start URL for login flow
  * This is the unified entry point for all OAuth login flows
- * 
+ *
  * @param redirectPath - Path to redirect to after login (default: "/")
  * @returns URL to /api/oauth/start endpoint
  */
@@ -19,7 +19,7 @@ export const getOAuthStartUrl = (redirectPath: string = "/"): string => {
  * The server now handles OAuth state signing via /api/oauth/start
  */
 export const getLoginUrl = (): string => {
-  return getOAuthStartUrl("/");
+  return getOAuthStartUrl("/dashboard");
 };
 
 /**
@@ -27,5 +27,5 @@ export const getLoginUrl = (): string => {
  * This function is kept for backward compatibility but should not be used
  */
 export const signAndRedirect = async (): Promise<void> => {
-  window.location.href = getOAuthStartUrl("/");
+  window.location.href = getOAuthStartUrl("/dashboard");
 };

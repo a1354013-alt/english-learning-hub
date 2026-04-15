@@ -30,7 +30,7 @@ export default function AICourseGenerator() {
       setTopic("");
       setTimeout(() => setLocation("/my-courses"), 600);
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(error.message || "Failed to generate the course.");
     },
   });
@@ -78,13 +78,15 @@ export default function AICourseGenerator() {
             </CardHeader>
             <CardContent className="space-y-4 text-sm text-muted-foreground">
               <p>
-                Generate a level-appropriate mini course with vocabulary, grammar,
-                reading material, and exercises.
+                Generate a level-appropriate mini course with vocabulary,
+                grammar, reading material, and exercises.
               </p>
               <ul className="list-inside list-disc space-y-2">
                 <li>Pick a target difficulty level.</li>
                 <li>Describe a clear topic or scenario.</li>
-                <li>Review the generated course later or import it into SRS.</li>
+                <li>
+                  Review the generated course later or import it into SRS.
+                </li>
               </ul>
             </CardContent>
           </Card>
@@ -98,7 +100,9 @@ export default function AICourseGenerator() {
                 <label className="text-sm font-medium">Difficulty level</label>
                 <Select
                   value={proficiencyLevel}
-                  onValueChange={(value) => setProficiencyLevel(value as ProficiencyLevel)}
+                  onValueChange={value =>
+                    setProficiencyLevel(value as ProficiencyLevel)
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -117,7 +121,7 @@ export default function AICourseGenerator() {
                 <Input
                   placeholder="Examples: travel English, job interviews, restaurant conversations"
                   value={topic}
-                  onChange={(event) => setTopic(event.target.value)}
+                  onChange={event => setTopic(event.target.value)}
                   disabled={generateMutation.isPending}
                 />
                 <p className="text-xs text-muted-foreground">

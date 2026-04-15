@@ -17,7 +17,11 @@ describe("selectDailyWritingChallenge", () => {
       },
     ];
 
-    const selected = selectDailyWritingChallenge(today, "junior_high", challenges);
+    const selected = selectDailyWritingChallenge(
+      today,
+      "junior_high",
+      challenges
+    );
     expect(selected).toEqual(challenges[0]);
   });
 
@@ -41,8 +45,12 @@ describe("selectDailyWritingChallenge", () => {
       },
     ];
 
-    const selected = selectDailyWritingChallenge(today, "senior_high", challenges);
+    const selected = selectDailyWritingChallenge(
+      today,
+      "senior_high",
+      challenges
+    );
     expect(selected).not.toBeNull();
-    expect(challenges.map((item) => item.id)).toContain(selected?.id);
+    expect(challenges.map(item => item.id)).toContain(selected?.id);
   });
 });

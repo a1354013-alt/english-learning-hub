@@ -5,7 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, BookOpen, CheckCircle } from "lucide-react";
+import { AlertCircle, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface GrammarCorrection {
@@ -32,7 +32,7 @@ export default function WritingPractice() {
     });
 
   const grammarCheckMutation = trpc.writing.checkGrammar.useMutation({
-    onSuccess: (result) => {
+    onSuccess: result => {
       setCheckResult(result);
       setHasChecked(true);
 
@@ -42,20 +42,22 @@ export default function WritingPractice() {
         toast.info(`Found ${result.corrections.length} possible corrections.`);
       }
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(error.message || "Failed to check grammar.");
     },
   });
 
   const submitMutation = trpc.writing.submit.useMutation({
-    onSuccess: (result) => {
-      toast.success(`Submission saved. +${result.xpEarned} XP, score ${result.score}.`);
+    onSuccess: result => {
+      toast.success(
+        `Submission saved. +${result.xpEarned} XP, score ${result.score}.`
+      );
       setContent("");
       setHasChecked(false);
       setCheckResult(null);
       setTimeout(() => setLocation("/submission-history"), 400);
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(error.message || "Failed to submit writing.");
     },
   });
@@ -100,7 +102,8 @@ export default function WritingPractice() {
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">Writing practice</h1>
           <p className="text-muted-foreground">
-            Draft a response, check grammar, and submit your work for scoring and feedback.
+            Draft a response, check grammar, and submit your work for scoring
+            and feedback.
           </p>
         </div>
 
@@ -109,7 +112,9 @@ export default function WritingPractice() {
             {challengeLoading ? (
               <Card>
                 <CardContent className="pt-6">
-                  <p className="text-muted-foreground">Loading daily prompt...</p>
+                  <p className="text-muted-foreground">
+                    Loading daily prompt...
+                  </p>
                 </CardContent>
               </Card>
             ) : challenge ? (
@@ -119,15 +124,21 @@ export default function WritingPractice() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <p className="mb-2 text-sm font-semibold text-muted-foreground">Topic</p>
+                    <p className="mb-2 text-sm font-semibold text-muted-foreground">
+                      Topic
+                    </p>
                     <p>{challenge.topic}</p>
                   </div>
                   <div>
-                    <p className="mb-2 text-sm font-semibold text-muted-foreground">Prompt</p>
+                    <p className="mb-2 text-sm font-semibold text-muted-foreground">
+                      Prompt
+                    </p>
                     <p>{challenge.prompt}</p>
                   </div>
                   <div>
-                    <p className="mb-2 text-sm font-semibold text-muted-foreground">Level</p>
+                    <p className="mb-2 text-sm font-semibold text-muted-foreground">
+                      Level
+                    </p>
                     <p>{challenge.proficiencyLevel.replace(/_/g, " ")}</p>
                   </div>
                 </CardContent>
@@ -135,7 +146,9 @@ export default function WritingPractice() {
             ) : (
               <Card>
                 <CardContent className="pt-6">
-                  <p className="text-muted-foreground">No writing challenge is available.</p>
+                  <p className="text-muted-foreground">
+                    No writing challenge is available.
+                  </p>
                 </CardContent>
               </Card>
             )}
@@ -149,20 +162,25 @@ export default function WritingPractice() {
                   className="min-h-64"
                   placeholder="Write your response here..."
                   value={content}
-                  onChange={(event) => setContent(event.target.value)}
+                  onChange={event => setContent(event.target.value)}
                 />
                 <div className="flex gap-2">
                   <Button
                     className="flex-1"
                     variant="outline"
-                    disabled={grammarCheckMutation.isPending || content.trim().length < 10}
+                    disabled={
+                      grammarCheckMutation.isPending ||
+                      content.trim().length < 10
+                    }
                     onClick={handleCheckGrammar}
                   >
                     Check grammar
                   </Button>
                   <Button
                     className="flex-1"
-                    disabled={submitMutation.isPending || content.trim().length < 10}
+                    disabled={
+                      submitMutation.isPending || content.trim().length < 10
+                    }
                     onClick={handleSubmit}
                   >
                     Submit writing
@@ -206,7 +224,10 @@ export default function WritingPractice() {
                       </p>
                       <div className="space-y-3">
                         {checkResult.corrections.map((correction, index) => (
-                          <div key={`${correction.original}-${index}`} className="space-y-2 rounded-lg bg-muted p-3">
+                          <div
+                            key={`${correction.original}-${index}`}
+                            className="space-y-2 rounded-lg bg-muted p-3"
+                          >
                             <div className="flex items-start gap-2">
                               <span className="rounded bg-red-100 px-2 py-1 font-mono text-sm text-red-800">
                                 {correction.original}
@@ -231,7 +252,7 @@ export default function WritingPractice() {
                         Suggestions
                       </p>
                       <ul className="space-y-2">
-                        {checkResult.suggestions.map((suggestion) => (
+                        {checkResult.suggestions.map(suggestion => (
                           <li key={suggestion} className="flex gap-2 text-sm">
                             <span className="text-accent">•</span>
                             <span>{suggestion}</span>
@@ -252,19 +273,26 @@ export default function WritingPractice() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
-                  <p className="mb-1 text-xs text-muted-foreground">Characters</p>
+                  <p className="mb-1 text-xs text-muted-foreground">
+                    Characters
+                  </p>
                   <p className="text-2xl font-bold">{content.length}</p>
                 </div>
                 <div>
                   <p className="mb-1 text-xs text-muted-foreground">Words</p>
                   <p className="text-2xl font-bold">
-                    {content.split(/\s+/).filter((word) => word.length > 0).length}
+                    {
+                      content.split(/\s+/).filter(word => word.length > 0)
+                        .length
+                    }
                   </p>
                 </div>
                 {checkResult ? (
                   <div>
                     <p className="mb-1 text-xs text-muted-foreground">Score</p>
-                    <p className="text-2xl font-bold text-accent">{checkResult.score}/100</p>
+                    <p className="text-2xl font-bold text-accent">
+                      {checkResult.score}/100
+                    </p>
                   </div>
                 ) : null}
               </CardContent>
@@ -279,7 +307,9 @@ export default function WritingPractice() {
                   <li>Use complete sentences with clear subjects and verbs.</li>
                   <li>Check for repeated wording and overly short answers.</li>
                   <li>Support your ideas with examples when possible.</li>
-                  <li>Run grammar check before submitting if you are unsure.</li>
+                  <li>
+                    Run grammar check before submitting if you are unsure.
+                  </li>
                 </ul>
               </CardContent>
             </Card>

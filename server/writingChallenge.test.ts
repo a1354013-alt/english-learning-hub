@@ -10,7 +10,9 @@ describe("challengeIndexForDate", () => {
   it("changes index across days when challenge count allows", () => {
     const day1 = new Date("2026-04-09T00:00:00.000Z");
     const day2 = new Date("2026-04-10T00:00:00.000Z");
-    expect(challengeIndexForDate(day1, 7)).not.toBe(challengeIndexForDate(day2, 7));
+    expect(challengeIndexForDate(day1, 7)).not.toBe(
+      challengeIndexForDate(day2, 7)
+    );
   });
 
   it("uses Taipei day boundaries instead of UTC midnight", () => {

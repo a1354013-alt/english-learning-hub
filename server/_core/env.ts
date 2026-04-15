@@ -63,7 +63,9 @@ function validateEnvironment(): EnvironmentConfig {
   if (!databaseUrl) {
     errors.push("DATABASE_URL is required");
   } else if (!databaseUrl.startsWith("mysql://")) {
-    errors.push("DATABASE_URL must start with mysql:// (SRV lookup not supported)");
+    errors.push(
+      "DATABASE_URL must start with mysql:// (SRV lookup not supported)"
+    );
   }
 
   if (!isTestMode) {
@@ -71,10 +73,14 @@ function validateEnvironment(): EnvironmentConfig {
       errors.push("VITE_APP_ID is required in production/development mode");
     }
     if (!oAuthServerUrl) {
-      errors.push("OAUTH_SERVER_URL is required in production/development mode");
+      errors.push(
+        "OAUTH_SERVER_URL is required in production/development mode"
+      );
     }
     if (!oAuthPortalUrl) {
-      errors.push("VITE_OAUTH_PORTAL_URL is required in production/development mode");
+      errors.push(
+        "VITE_OAUTH_PORTAL_URL is required in production/development mode"
+      );
     }
     if (process.env.NODE_ENV === "production" && !appOrigin) {
       errors.push("APP_ORIGIN is required in production mode");
@@ -83,7 +89,7 @@ function validateEnvironment(): EnvironmentConfig {
 
   if (errors.length > 0) {
     const errorMessage = `[ENV] Environment validation failed:\n${errors
-      .map((e) => `  - ${e}`)
+      .map(e => `  - ${e}`)
       .join("\n")}`;
     console.error(errorMessage);
     throw new Error(errorMessage);

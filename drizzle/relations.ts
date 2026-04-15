@@ -8,7 +8,6 @@ import {
   videos,
   writingChallenges,
   writingSubmissions,
-  contentArchive,
   learningPaths,
   aiCourses,
 } from "./schema";
@@ -43,21 +42,26 @@ export const dailySignInsRelations = relations(dailySignIns, ({ one }) => ({
   user: one(users, { fields: [dailySignIns.userId], references: [users.id] }),
 }));
 
-export const writingChallengesRelations = relations(writingChallenges, ({ many }) => ({
-  submissions: many(writingSubmissions),
-}));
+export const writingChallengesRelations = relations(
+  writingChallenges,
+  ({ many }) => ({
+    submissions: many(writingSubmissions),
+  })
+);
 
-export const writingSubmissionsRelations = relations(writingSubmissions, ({ one }) => ({
-  user: one(users, { fields: [writingSubmissions.userId], references: [users.id] }),
-  challenge: one(writingChallenges, {
-    fields: [writingSubmissions.challengeId],
-    references: [writingChallenges.id],
-  }),
-}));
-
-export const contentArchiveRelations = relations(contentArchive, ({ one }) => ({
-  user: one(users, { fields: [contentArchive.userId], references: [users.id] }),
-}));
+export const writingSubmissionsRelations = relations(
+  writingSubmissions,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [writingSubmissions.userId],
+      references: [users.id],
+    }),
+    challenge: one(writingChallenges, {
+      fields: [writingSubmissions.challengeId],
+      references: [writingChallenges.id],
+    }),
+  })
+);
 
 export const learningPathsRelations = relations(learningPaths, ({ one }) => ({
   user: one(users, { fields: [learningPaths.userId], references: [users.id] }),
