@@ -21,15 +21,15 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
+
     env:
       DATABASE_URL: mysql://root:root@127.0.0.1:3306/english_learning_hub_test
       JWT_SECRET: test-jwt-secret-with-safe-minimum-length-32
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
